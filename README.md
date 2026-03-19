@@ -9,8 +9,8 @@
 
 Tree-shakable ESM bundle, zero-config, developer-friendly guards for `typeof`, `instanceof`, and structural checks.
 
-* **Minified:** ~2.5 KB
-* **Gzipped:** ~1.3 KB
+* **Minified:** ~3.14 KB
+* **Gzipped:** ~1.48 KB
 
 ---
 
