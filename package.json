@@ -1,6 +1,6 @@
 {
     "name": "nanotypes",
-    "version": "0.0.13",
+    "version": "0.0.14",
     "description": "Minimal, runtime-safe type checks for modern JS & TS",
     "type": "module",
     "files": [
