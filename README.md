@@ -3,8 +3,8 @@
 [![npm](https://img.shields.io/npm/v/nanotypes)](https://www.npmjs.com/package/nanotypes)
 [![downloads](https://img.shields.io/npm/dm/nanotypes)](https://www.npmjs.com/package/nanotypes)
 [![bundle size](https://img.shields.io/bundlephobia/minzip/nanotypes)](https://bundlephobia.com/package/nanotypes)
-[![license](https://img.shields.io/npm/l/nanotypes)](https://github.com/iWhatty/NanoTypes/blob/main/LICENSE)
-[![stars](https://img.shields.io/github/stars/iWhatty/NanoTypes?style=social)](https://github.com/iWhatty/NanoTypes)
+[![license](https://img.shields.io/npm/l/nanotypes)](https://github.com/iWhatty/nanotypes/blob/main/LICENSE)
+[![stars](https://img.shields.io/github/stars/iWhatty/nanotypes?style=social)](https://github.com/iWhatty/nanotypes)
 
 **Minimal, runtime-safe type guards for modern JavaScript.**
 
