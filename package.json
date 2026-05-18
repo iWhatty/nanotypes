@@ -6,7 +6,8 @@
     "files": [
         "dist/",
         "README.md",
-        "LICENSE.MD"
+        "LICENSE",
+        "ADDITIONAL_TERMS.md"
     ],
     "main": "./dist/index.js",
     "module": "dist/index.js",
@@ -35,7 +36,7 @@
         "url": "git+https://github.com/iWhatty/nanotypes.git"
     },
     "author": "WATT3D <WATT3D@protonmail.com>",
-    "license": "SEE LICENSE IN LICENSE",
+    "license": "AGPL-3.0-only",
     "sideEffects": false,
     "devDependencies": {
         "esbuild": "^0.25.4"
