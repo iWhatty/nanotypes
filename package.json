@@ -34,7 +34,8 @@
         "type": "git",
         "url": "git+https://github.com/iWhatty/nanotypes.git"
     },
-    "license": "DR.WATT v3.0",
+    "author": "WATT3D <WATT3D@protonmail.com>",
+    "license": "SEE LICENSE IN LICENSE",
     "sideEffects": false,
     "devDependencies": {
         "esbuild": "^0.25.4"

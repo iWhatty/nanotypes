@@ -280,4 +280,4 @@ NanoTypes avoids boilerplate and unnecessary runtime bloat. Just clean, modern t
 
 ## License
 
-**DR.WATT v3.0**
+See [LICENSE](./LICENSE.MD). © WATT3D.
