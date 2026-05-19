@@ -26,6 +26,7 @@ Tree-shakable ESM bundle, zero-config, developer-friendly guards for `typeof`, `
 * Shared DEV detection via `globalThis.__DEV__` or `NODE_ENV !== "production"`
 * Auto-generated `assertType.*` versions
 * Primitive shorthands: `is.str`, `is.num`, `is.bool`, `is.bigi`, `is.sym`, `is.undef`
+* Structural-guard shorthands: `is.obj` → `is.object`, `is.arr` → `is.array` (added in 0.0.17)
 * Built-in TypeScript type predicates
 * No dependencies
 

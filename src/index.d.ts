@@ -84,6 +84,10 @@ export namespace is {
   function pojo(x: unknown): x is Record<string, unknown>;
   function objectLoose(x: unknown): x is object;
 
+  // shorthands for the structural guards (added 0.0.17)
+  function obj(x: unknown): x is object;
+  function arr(x: unknown): x is unknown[];
+
   // derived value checks
   function truthy<T>(x: T): x is Truthy<T>;
   function falsy(x: unknown): x is Falsy;
@@ -127,6 +131,10 @@ export namespace assertType {
   function plainObject(x: unknown): asserts x is Record<string, unknown>;
   function pojo(x: unknown): asserts x is Record<string, unknown>;
   function objectLoose(x: unknown): asserts x is object;
+
+  // shorthands for the structural guards (added 0.0.17)
+  function obj(x: unknown): asserts x is object;
+  function arr(x: unknown): asserts x is unknown[];
 
   function promise(x: unknown): asserts x is Promise<any>;
   function date(x: unknown): asserts x is Date;

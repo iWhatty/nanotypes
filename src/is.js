@@ -78,6 +78,14 @@ is.pojo = is.plainObject;
 // Useful for general reflection or fallback behavior (not validation).
 is.objectLoose = (x) => typeof x === 'object' && x !== null;
 
+// Short-form aliases for the two structural guards most commonly reached
+// for at message / API / storage boundaries. Matches the shorthand naming
+// pattern already used for the typeof primitives (`is.str`, `is.num`,
+// etc.) — `is.obj` is `is.object`, `is.arr` is `is.array`. assertType
+// picks these up automatically (assertType.obj, assertType.arr).
+is.obj = is.object;
+is.arr = is.array;
+
 
 
 // === Derived Boolean Checks ===
