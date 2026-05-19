@@ -6,7 +6,7 @@
 [![license](https://img.shields.io/npm/l/nanotypes)](https://github.com/iWhatty/nanotypes/blob/main/LICENSE)
 [![stars](https://img.shields.io/github/stars/iWhatty/nanotypes?style=social)](https://github.com/iWhatty/nanotypes)
 
-Minimal, runtime-safe type guards for modern JavaScript. Tree-shakable ESM, zero dependencies, ~1.6 KB gzipped.
+Minimal, runtime-safe type guards for modern JavaScript. Two surfaces, same package: an ergonomic `is` namespace, plus per-guard named exports that tree-shake to ~600 bytes gzipped for a single guard. Zero dependencies.
 
 ## Features
 
@@ -35,26 +35,35 @@ pnpm add nanotypes
 
 ## Quick start
 
-```js
-import { is, assertType, describe } from 'nanotypes';
+Two import styles, same package, choose by bundle-size sensitivity.
 
-if (is.string("hello")) {
+**Per-guard named exports** (recommended for size-sensitive bundles, tree-shakes to ~600 bytes gzipped for a single guard):
+
+```js
+import { isString, isObject, assertString } from 'nanotypes';
+
+if (isString("hello")) {
   console.log("It's a string!");
 }
 
-// Shorthand aliases
-if (is.str("hello")) {
-  console.log("Short and sweet.");
-}
+assertString(maybeText); // throws TypeError if not a string
+```
 
-if (is(someValue, HTMLElement)) {
-  someValue.focus();
-}
+**Legacy `is` / `assertType` namespaces** (ergonomic, pulls the full ~2.3 KB gzipped surface):
+
+```js
+import { is, assertType, describe } from 'nanotypes';
+
+if (is.string("hello")) console.log("It's a string!");
+if (is.str("hello")) console.log("Short and sweet.");
+if (is(someValue, HTMLElement)) someValue.focus();
 
 assertType.promise(Promise.resolve()); // throws TypeError if invalid
 
 console.log(describe.value(new Map())); // "Map"
 ```
+
+Both shapes are kept in lockstep. Every guard `isFoo` named export has a matching `is.foo` on the namespace; every assert `assertFoo` has a matching `assertType.foo`.
 
 ---
 
@@ -195,9 +204,10 @@ import { is, assertType } from 'nanotypes/auto';
 
 `/auto` walks `globalThis` at module load and adds every constructor-shaped global to the `is` namespace, on top of the curated static set. Trade-off: a larger surface that TypeScript can't narrow against (the `.d.ts` for `/auto` is the same as the default; the extra guards are reachable but un-narrowed). About ~370 bytes larger gzipped than the default. Useful for diagnostic or introspective code; not recommended as a default import in size-sensitive bundles.
 
-### Migration from 0.0.x
+### Migration from 0.0.x / 0.1.0
 
-In 0.0.x, the default entry ran the global scanner at import. As of **0.1.0**, the scanner is opt-in via `/auto`. Most users don't notice the difference; if you were relying on a guard for an exotic global like `is.urlPattern`, switch the import line to `'nanotypes/auto'`. No other code change required.
+- **0.0.x → 0.1.0:** the default entry no longer runs the global scanner at import; the scanner is opt-in via `/auto`. If you were relying on a guard for an exotic global like `is.urlPattern`, switch the import line to `'nanotypes/auto'`.
+- **0.1.0 → 0.2.0:** purely additive. New per-guard named exports (`isString`, `assertString`, etc.) join the existing `is` / `assertType` namespaces; both shapes work side by side. Recommended pattern for size-sensitive bundles is to migrate `import { is } from 'nanotypes'; is.string(x)` to `import { isString } from 'nanotypes'; isString(x)`, which saves ~1 KB gzipped per import when only a few guards are used.
 
 ### Design principles
 

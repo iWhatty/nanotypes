@@ -1,13 +1,16 @@
 // ./test/smokeTest.js
 //
-// Runs the same guard battery against both the default entry (curated
-// static surface) and the /auto entry (scanner-augmented surface). The
-// default exit code is non-zero if any assertion fails.
+// Runs the same guard battery against:
+//   1. the default entry's legacy `is` namespace (curated static)
+//   2. the /auto entry's namespace (static + scanner-augmented)
+//   3. the new per-guard named exports (tree-shakeable surface)
+//
+// Exits non-zero if any assertion fails or if /auto's surface is not a
+// superset of default.
 
-console.log('\n== Type Check Smoke Test ==');
+console.log('\n== nanotypes smoke test ==');
 
 // Disable DEV warnings for this smoke run.
-// env.js reads NODE_ENV during module evaluation, so set it before importing.
 process.env.NODE_ENV = 'production';
 
 const [defaultMod, autoMod, describeMod] = await Promise.all([
@@ -46,8 +49,8 @@ const negatives = {
 
 const defaultNegative = '___nanotypes_negative___';
 
-function runBattery(label, { is }) {
-  console.log(`\n--- ${label} ---`);
+function runNamespaceBattery(label, { is }) {
+  console.log(`\n--- ${label} (namespace) ---`);
 
   for (const [name, val] of tests) {
     if (val === null) {
@@ -57,7 +60,7 @@ function runBattery(label, { is }) {
 
     const fn = is[name];
     if (typeof fn !== 'function') {
-      console.log(`is.${name}: no guard`);
+      console.error(`is.${name}: NO GUARD`);
       process.exitCode = 1;
       continue;
     }
@@ -77,14 +80,67 @@ function runBattery(label, { is }) {
   }
 }
 
-runBattery('default (curated static)', defaultMod);
-runBattery('/auto (static + scanner)', autoMod);
+runNamespaceBattery('default', defaultMod);
+runNamespaceBattery('/auto', autoMod);
 
-// Null-proto behavior check
-const nullProto = Object.create(null);
-console.log('\n describe.value(Object.create(null)):', describeMod.describe.value(nullProto));
+// --- Per-guard named exports (the wave-3 win) ---
+console.log('\n--- per-guard named exports (tree-shakeable surface) ---');
 
-// Surface comparison: /auto should always have >= default surface
+const namedSamples = [
+  ['isString', defaultMod.isString, 'hello', 42],
+  ['isStr', defaultMod.isStr, 'hello', 42],
+  ['isNumber', defaultMod.isNumber, 42, 'x'],
+  ['isNum', defaultMod.isNum, 42, 'x'],
+  ['isBool', defaultMod.isBool, true, 'x'],
+  ['isObject', defaultMod.isObject, {}, []],
+  ['isObj', defaultMod.isObj, {}, []],
+  ['isArray', defaultMod.isArray, [], {}],
+  ['isArr', defaultMod.isArr, [], {}],
+  ['isDefined', defaultMod.isDefined, 42, null],
+  ['isMap', defaultMod.isMap, new Map(), {}],
+  ['isDate', defaultMod.isDate, new Date(), {}],
+  ['isUrl', defaultMod.isUrl, new URL('https://example.com'), {}],
+];
+
+for (const [name, fn, pos, neg] of namedSamples) {
+  if (typeof fn !== 'function') {
+    console.error(`${name}: NOT EXPORTED`);
+    process.exitCode = 1;
+    continue;
+  }
+  const ok = Boolean(fn(pos));
+  const bad = Boolean(fn(neg));
+  console.log(`${name}: ${ok} | negative: ${bad}`);
+  if (ok !== true || bad !== false) process.exitCode = 1;
+}
+
+// --- Per-assert named exports throw correctly ---
+console.log('\n--- per-assert named exports (throwing behavior) ---');
+
+const assertSamples = [
+  ['assertString', defaultMod.assertString, 'hello', 42],
+  ['assertObject', defaultMod.assertObject, {}, []],
+  ['assertNumberSafe', defaultMod.assertNumberSafe, 42, NaN],
+];
+
+for (const [name, fn, pos, neg] of assertSamples) {
+  if (typeof fn !== 'function') {
+    console.error(`${name}: NOT EXPORTED`);
+    process.exitCode = 1;
+    continue;
+  }
+  let posOk = false;
+  try { fn(pos); posOk = true; } catch (e) { posOk = false; }
+  let negThrew = false;
+  try { fn(neg); } catch (e) { negThrew = true; }
+  console.log(`${name}: positive-no-throw=${posOk} | negative-throws=${negThrew}`);
+  if (!posOk || !negThrew) process.exitCode = 1;
+}
+
+// --- Null-proto describe check ---
+console.log('\n describe.value(Object.create(null)):', describeMod.describe.value(Object.create(null)));
+
+// --- /auto must be a superset of default ---
 const defaultKeys = new Set(Object.keys(defaultMod.is));
 const autoKeys = new Set(Object.keys(autoMod.is));
 
