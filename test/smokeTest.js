@@ -1,4 +1,8 @@
 // ./test/smokeTest.js
+//
+// Runs the same guard battery against both the default entry (curated
+// static surface) and the /auto entry (scanner-augmented surface). The
+// default exit code is non-zero if any assertion fails.
 
 console.log('\n== Type Check Smoke Test ==');
 
@@ -6,8 +10,9 @@ console.log('\n== Type Check Smoke Test ==');
 // env.js reads NODE_ENV during module evaluation, so set it before importing.
 process.env.NODE_ENV = 'production';
 
-const [{ is }, { describe }] = await Promise.all([
-  import('../src/is.js'),
+const [defaultMod, autoMod, describeMod] = await Promise.all([
+  import('../src/index.js'),
+  import('../src/auto.js'),
   import('../src/describe.js'),
 ]);
 
@@ -29,21 +34,9 @@ const tests = [
   ['number', NaN],
 ];
 
-// Per-guard negative samples (so “negative” actually means negative)
 const negatives = {
-  // instanceof-style guards
-  map: {},
-  set: {},
-  promise: {},
-  date: {},
-  error: {},
-  blob: {},
-  canvas: {},
-  worker: {},
-  intlDateTimeFormat: {},
-  url: {},
-
-  // structural/manual guards
+  map: {}, set: {}, promise: {}, date: {}, error: {}, blob: {},
+  canvas: {}, worker: {}, intlDateTimeFormat: {}, url: {},
   objectStrict: new Map(),
   plainObject: new Map(),
   array: {},
@@ -53,34 +46,55 @@ const negatives = {
 
 const defaultNegative = '___nanotypes_negative___';
 
-for (const [name, val] of tests) {
-  if (val === null) {
-    console.log(`is.${name} not supported in this environment`);
-    continue;
-  }
+function runBattery(label, { is }) {
+  console.log(`\n--- ${label} ---`);
 
-  const fn = is[name];
-  if (typeof fn !== 'function') {
-    console.log(`is.${name}: ❌ no guard`);
-    continue;
-  }
+  for (const [name, val] of tests) {
+    if (val === null) {
+      console.log(`is.${name} not supported in this environment`);
+      continue;
+    }
 
-  try {
-    const ok = Boolean(fn(val));
-    const negVal = Object.prototype.hasOwnProperty.call(negatives, name) ? negatives[name] : defaultNegative;
-    const bad = Boolean(fn(negVal));
+    const fn = is[name];
+    if (typeof fn !== 'function') {
+      console.log(`is.${name}: no guard`);
+      process.exitCode = 1;
+      continue;
+    }
 
-    console.log(`is.${name}:`, ok, '| negative:', bad);
+    try {
+      const ok = Boolean(fn(val));
+      const negVal = Object.prototype.hasOwnProperty.call(negatives, name) ? negatives[name] : defaultNegative;
+      const bad = Boolean(fn(negVal));
 
-    if (ok !== true || bad !== false) process.exitCode = 1;
-    
-  } catch (e) {
-    console.error(`❌ is.${name} threw error:`, e);
+      console.log(`is.${name}:`, ok, '| negative:', bad);
+
+      if (ok !== true || bad !== false) process.exitCode = 1;
+    } catch (e) {
+      console.error(`is.${name} threw error:`, e);
+      process.exitCode = 1;
+    }
   }
 }
 
-// Null-proto behavior (not a guard; a behavior check)
-const nullProto = Object.create(null);
-console.log('\n describe.value(Object.create(null)):', describe.value(nullProto));
+runBattery('default (curated static)', defaultMod);
+runBattery('/auto (static + scanner)', autoMod);
 
-console.log('\n Active is.* guards:', Object.keys(is).sort().join(', \n'));
+// Null-proto behavior check
+const nullProto = Object.create(null);
+console.log('\n describe.value(Object.create(null)):', describeMod.describe.value(nullProto));
+
+// Surface comparison: /auto should always have >= default surface
+const defaultKeys = new Set(Object.keys(defaultMod.is));
+const autoKeys = new Set(Object.keys(autoMod.is));
+
+console.log('\n default surface size:', defaultKeys.size);
+console.log(' /auto   surface size:', autoKeys.size);
+console.log(' /auto-only keys:', [...autoKeys].filter((k) => !defaultKeys.has(k)).sort().join(', '));
+
+for (const k of defaultKeys) {
+  if (!autoKeys.has(k)) {
+    console.error(`/auto is missing default guard: is.${k}`);
+    process.exitCode = 1;
+  }
+}

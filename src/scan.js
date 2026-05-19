@@ -1,8 +1,13 @@
-// ./src/instanceof-map.js
-
-// === Dynamic: "name → instanceof" ===
-// This map defines common global and browser-native constructors
-// that we expose as is.<type> shorthand guards.
+// ./src/scan.js
+//
+// Runtime scanner that walks `globalThis` and produces an instanceof map
+// from every well-formed constructor it finds. Used by the optional
+// `nanotypes/auto` subpath to augment the default (curated) surface with
+// runtime-discovered globals (browser-only types not in the curated list,
+// exotic platform APIs, user-installed globals).
+//
+// Importing this module does not run the scan; call
+// `generateInstanceofMap()` explicitly when you want the result.
 
 
 // Keys to exclude when checking isValidInstanceofType
@@ -72,5 +77,3 @@ export function generateInstanceofMap() {
 
   return Object.fromEntries(entries);
 }
-
-export const instanceofMap = generateInstanceofMap();

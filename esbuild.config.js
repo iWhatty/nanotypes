@@ -6,29 +6,29 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const shared = {
-  entryPoints: ['./src/index.js'],
   bundle: true,
   minify: true,
   sourcemap: false,
   target: 'es2022',
+  format: 'esm',
 };
 
-// Create dist/ if it doesn't exist
 mkdirSync('dist', { recursive: true });
 
-// ESM output
+// Default entry: curated static surface
 await build({
   ...shared,
-  format: 'esm',
+  entryPoints: ['./src/index.js'],
   outfile: 'dist/index.js',
 });
 
-// CJS output -- dropping .cjs support for now
-// await build({
-//   ...shared,
-//   format: 'cjs',
-//   outfile: 'dist/index.cjs',
-// });
+// /auto entry: static + scanner-augmented surface
+await build({
+  ...shared,
+  entryPoints: ['./src/auto.js'],
+  outfile: 'dist/auto.js',
+});
 
-// Copy index.d.ts manually
+// Copy type declarations
 cpSync(`${__dirname}/src/index.d.ts`, `${__dirname}/dist/index.d.ts`);
+cpSync(`${__dirname}/src/auto.d.ts`,  `${__dirname}/dist/auto.d.ts`);

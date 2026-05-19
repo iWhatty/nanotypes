@@ -6,7 +6,7 @@
 [![license](https://img.shields.io/npm/l/nanotypes)](https://github.com/iWhatty/nanotypes/blob/main/LICENSE)
 [![stars](https://img.shields.io/github/stars/iWhatty/nanotypes?style=social)](https://github.com/iWhatty/nanotypes)
 
-Minimal, runtime-safe type guards for modern JavaScript. Tree-shakable ESM, zero dependencies, ~1.48 KB gzipped.
+Minimal, runtime-safe type guards for modern JavaScript. Tree-shakable ESM, zero dependencies, ~1.6 KB gzipped.
 
 ## Features
 
@@ -175,20 +175,29 @@ nanotypes is hardened for modern environments:
 
 ### Runtime-adaptive behavior
 
-nanotypes dynamically inspects `globalThis` to expose constructor-based guards.
+The default entry ships a curated static map of well-known constructors. Each guard is feature-detected at module load, so browser-only constructors (like `HTMLElement`) will not exist when you `import { is }` from Node.
 
-This means:
-
-- Browser-only constructors (like `HTMLElement`) will not exist in Node.
-- New runtime constructors may automatically become available.
-
-If writing universal libraries, you can safely check:
+If writing universal libraries, defensive-check before calling:
 
 ```js
 if (typeof is.htmlElement === 'function' && is.htmlElement(node)) {
   // browser-only logic
 }
 ```
+
+### Auto-discovery via `nanotypes/auto`
+
+If you need guards for globals beyond the curated set (`urlPattern`, `broadcastChannel`, `compressionStream`, custom platform APIs, user-defined globals), import the `/auto` subpath:
+
+```js
+import { is, assertType } from 'nanotypes/auto';
+```
+
+`/auto` walks `globalThis` at module load and adds every constructor-shaped global to the `is` namespace, on top of the curated static set. Trade-off: a larger surface that TypeScript can't narrow against (the `.d.ts` for `/auto` is the same as the default; the extra guards are reachable but un-narrowed). About ~370 bytes larger gzipped than the default. Useful for diagnostic or introspective code; not recommended as a default import in size-sensitive bundles.
+
+### Migration from 0.0.x
+
+In 0.0.x, the default entry ran the global scanner at import. As of **0.1.0**, the scanner is opt-in via `/auto`. Most users don't notice the difference; if you were relying on a guard for an exotic global like `is.urlPattern`, switch the import line to `'nanotypes/auto'`. No other code change required.
 
 ### Design principles
 
