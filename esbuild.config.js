@@ -42,6 +42,10 @@ await build({
   outdir: 'dist',
   bundle: false,
   minify: true,
+  // A library build: "neutral" keeps esbuild from inlining
+  // process.env.NODE_ENV as "production" (its browser + minify default),
+  // so the consumer's runtime decides DEV (see src/env.js).
+  platform: 'neutral',
   sourcemap: false,
   target: 'es2022',
   format: 'esm',

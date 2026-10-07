@@ -17,7 +17,7 @@ Minimal, runtime-safe type guards for modern JavaScript. Two surfaces, same pack
 - Non-throwing `instanceof` checks (runtime hardened)
 - All guards return strict booleans (`true | false`)
 - Production-hardened: exported APIs are frozen in production
-- Shared DEV detection via `globalThis.__DEV__` or `NODE_ENV !== "production"`
+- Shared DEV detection at run time: `globalThis.__DEV__ === true`, or in Node `process.env.NODE_ENV !== "production"` (read through `globalThis`, so bundlers never polyfill `process`)
 - Auto-generated `assertType.*` versions
 - Primitive shorthands: `is.str`, `is.num`, `is.bool`, `is.bigi`, `is.sym`, `is.undef`
 - Structural-guard shorthands: `is.obj` → `is.object`, `is.arr` → `is.array` (added in 0.0.17)
@@ -77,7 +77,7 @@ is(value, Class)
 ```
 
 - Uses `instanceof` internally
-- Logs warnings in development (`globalThis.__DEV__ = true` or when `process.env.NODE_ENV !== "production"`)
+- Logs warnings in development (`globalThis.__DEV__ = true`, or in Node when `NODE_ENV !== "production"`; in browsers set `globalThis.__DEV__`)
 - Never throws, safely returns `false` on invalid constructor input
 
 ### Type-specific guards

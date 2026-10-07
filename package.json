@@ -1,6 +1,6 @@
 {
     "name": "nanotypes",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "description": "Minimal, runtime-safe type checks for modern JS & TS",
     "type": "module",
     "engines": {
@@ -30,7 +30,8 @@
     },
     "scripts": {
         "build": "node esbuild.config.js",
-        "test": "node ./test/smokeTest.js"
+        "test": "node ./test/smokeTest.js && npm run build && node ./test/distSafety.js",
+        "prepublishOnly": "npm test"
     },
     "keywords": [
         "type-checking",

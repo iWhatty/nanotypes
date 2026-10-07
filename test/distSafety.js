@@ -1,0 +1,57 @@
+// ./test/distSafety.js
+//
+// Checks the built dist/, not src/: what consumers actually install.
+// 1. No dist file names a free `process` identifier (bundlers would polyfill
+//    or auto-install it).
+// 2. DEV follows the documented rules in a fresh Node process per case:
+//    NODE_ENV unset -> true, NODE_ENV=production -> false,
+//    globalThis.__DEV__ = true -> true even in production.
+// Run after `npm run build`.
+import { readdirSync, readFileSync } from 'fs';
+import { spawnSync } from 'child_process';
+import { dirname, join } from 'path';
+import { fileURLToPath, pathToFileURL } from 'url';
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const dist = join(root, 'dist');
+let failures = 0;
+const fail = message => { failures++; console.error('FAIL ' + message); };
+
+console.log('\n== nanotypes dist safety ==');
+
+// A `process` that is not a property access (`.process`, `?.process`) or part
+// of a longer identifier.
+const FREE_PROCESS = /(?<![.\w$])process(?![\w$])/;
+const files = readdirSync(dist).filter(name => name.endsWith('.js'));
+if (!files.length) fail('dist/ has no .js files; run `npm run build` first');
+for (const name of files) {
+  const source = readFileSync(join(dist, name), 'utf8');
+  if (FREE_PROCESS.test(source)) fail(`dist/${name} references a free \`process\` identifier`);
+}
+console.log(` scanned ${files.length} dist files for a free \`process\``);
+
+const envUrl = pathToFileURL(join(dist, 'env.js')).href;
+const cases = [
+  { name: 'NODE_ENV unset', env: {}, pre: '', expected: true },
+  { name: 'NODE_ENV=development', env: { NODE_ENV: 'development' }, pre: '', expected: true },
+  { name: 'NODE_ENV=production', env: { NODE_ENV: 'production' }, pre: '', expected: false },
+  { name: '__DEV__ in production', env: { NODE_ENV: 'production' }, pre: 'globalThis.__DEV__ = true;', expected: true },
+  { name: 'no process (browser-like)', env: {}, pre: 'delete globalThis.process;', expected: false },
+];
+for (const c of cases) {
+  const env = { ...process.env };
+  delete env.NODE_ENV;
+  Object.assign(env, c.env);
+  const script = `${c.pre} const { DEV } = await import(${JSON.stringify(envUrl)}); console.log(String(DEV));`;
+  const run = spawnSync(process.execPath, ['--input-type=module', '-e', script], { env, encoding: 'utf8' });
+  const got = run.stdout.trim();
+  if (run.status !== 0) fail(`${c.name}: child exited ${run.status}: ${run.stderr.trim()}`);
+  else if (got !== String(c.expected)) fail(`${c.name}: DEV=${got}, expected ${c.expected}`);
+  else console.log(` DEV ${c.name}: ${got}`);
+}
+
+if (failures) {
+  console.error(`\n${failures} dist safety check(s) failed`);
+  process.exit(1);
+}
+console.log(' dist safety: ok');

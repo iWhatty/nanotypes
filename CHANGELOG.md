@@ -2,6 +2,17 @@
 
 > Initial cut seeded from `git log` by the host repo's `tools/seed-changelogs.mjs` script. Version groupings infer release boundaries from tags and commit subjects; rough cuts are expected — review and tighten as part of normal maintenance.
 
+## 0.2.3 — 2026-10-07
+
+- **fix(env): DEV detection without a free `process` identifier.** The published `dist/env.js` (0.2.2 and earlier) shipped `typeof process<"u"&&!1`. esbuild's browser-platform minify inlined `process.env.NODE_ENV` as `"production"` at nanotypes' own build, so:
+  - Node's `NODE_ENV` DEV detection never worked from dist; only `globalThis.__DEV__` did.
+  - The leftover free `process` made browser bundlers polyfill it. Parcel auto-installed the `process` package into a consumer's project, and with a stray `package-lock.json` it ran npm inside a pnpm tree.
+- `src/env.js` now reads `globalThis.process` at run time: Node uses `NODE_ENV`, other runtimes use `globalThis.__DEV__`.
+  - Browser behaviour is unchanged from the 0.2.2 dist, and Node gets the documented behaviour back.
+  - Only the `is`, `assertType`, `describe`, and `auto` namespaces read DEV (warnings, freezing); the named guards are unaffected.
+- build: `platform: "neutral"` in `esbuild.config.js`, so no environment is inlined into the library. With the new `env.js`, every dist file is byte-identical with or without it.
+- test: `test/distSafety.js` checks the built dist for any free `process`, and checks DEV in fresh Node processes. `npm test` builds and runs it, and `prepublishOnly` runs `npm test`.
+
 ## 0.2.2 — 2026-05-23
 
 - **fix(asserts): tree-shake regression — rewrite `wrap()` factory to direct function declarations.** Pre-0.2.2 the asserts module used `export const assertString = wrap('string', isString)` for all ~90 asserts. Bundlers cannot statically prove that the module-level `wrap(...)` initializers are side-effect-free, so even a minimal `import { assertStr, assertObject }` consumer pulled in all 91 asserts plus every guard they reference — measured at **2,230 B gz** during the 0.2.0→0.2.1 wave. The 0.2.1 fix landed for `guards.js` but `asserts.js` carried the same pattern and was deferred as "next coordinated republish" territory (host carry-forward #2). Same fix applied: every `export const assertX = wrap(...)` becomes `export function assertX(x) { if (!isX(x)) throw new TypeError(\`Expected name, got ${describe.value(x)}\`); }`. Shorthand aliases (`assertStr = assertString`, etc.) stay as identifier-reference `const`s — those are tree-shake-safe. Verified: minimal `assertStr + assertObject` consumer now bundles to **850 B gz** (down 62%). Guards-only baseline is 648 B gz; the 202 B gap is the error-template + `describe.value` overhead inherent to asserts.
