@@ -2,6 +2,17 @@
 
 > Initial cut seeded from `git log` by the host repo's `tools/seed-changelogs.mjs` script. Version groupings infer release boundaries from tags and commit subjects; rough cuts are expected — review and tighten as part of normal maintenance.
 
+## 0.2.4 — 2026-10-07
+
+- **types(isArray): keep element types when narrowing a union with a readonly array.** `isArray`, `isArr`, `assertArray`, `assertArr`, `is.array`, `is.arr`, `assertType.array`, and `assertType.arr` were declared `x is unknown[]`.
+  - A `ReadonlyArray<E>` is not an `unknown[]`, so on `Map<K, V> | ReadonlyArray<E>` TypeScript intersected instead of filtering, and the element type became `unknown`.
+  - They are now generic (`<T>(x: T): x is ArrayPart<T>`). Array members of a union are kept with their element types (`Map<K, V> | ReadonlyArray<E>` narrows to `ReadonlyArray<E>`, with `Map` in the else branch), and tuples are kept too.
+  - `unknown` and `any` still narrow to `unknown[]`, as in 0.2.3, and the else branch of `any` stays `any`. An intermediate version narrowed `any` to `any`, which turned the else branch into `never`; dogfooding in dice3D-js caught it before release.
+  - Types only: the runtime is unchanged.
+- test: `test/types/isArray.test.ts` checks the narrowing against the built `dist/index.d.ts`, in strict and loose mode (`npm run test:types`, part of `npm test` and so of `prepublishOnly`). It fails on the 0.2.3 declarations (9 errors).
+  - Also checked by hand on TypeScript 5.0.4, 5.4.5, and 6.0.3.
+  - Adds a `typescript` devDependency (6.0.3, released 2026-04-16, no install scripts).
+
 ## 0.2.3 — 2026-10-07
 
 - **fix(env): DEV detection without a free `process` identifier.** The published `dist/env.js` (0.2.2 and earlier) shipped `typeof process<"u"&&!1`. esbuild's browser-platform minify inlined `process.env.NODE_ENV` as `"production"` at nanotypes' own build, so:

@@ -13,6 +13,22 @@
 type Falsy = false | 0 | 0n | '' | null | undefined;
 type Truthy<T> = Exclude<T, Falsy>;
 
+// What isArray / assertArray narrow to. Every branch is assignable to T, as a
+// type predicate requires.
+// - `unknown` and `any` (untyped JS) narrow to `unknown[]`, as in 0.2.3; the
+//   else branch of `any` stays `any`.
+// - Array members of a union are kept with their element types, readonly
+//   ones included: `Map<K, V> | ReadonlyArray<E>` narrows to
+//   `ReadonlyArray<E>`. A plain `x is unknown[]` intersected instead,
+//   because a readonly array is not an `unknown[]`, so element types were
+//   lost.
+// - Other input with no array member narrows to `T & unknown[]`.
+type ArrayPart<T> = unknown extends T
+  ? Extract<unknown[], T>
+  : [Extract<T, readonly unknown[]>] extends [never]
+    ? T & unknown[]
+    : Extract<T, readonly unknown[]>;
+
 // =============================================================================
 // Generic instanceof + assertType (callable signatures)
 // =============================================================================
@@ -40,8 +56,8 @@ export function isUndef(x: unknown): x is undefined;
 export function isFunc(x: unknown): x is (...args: any[]) => any;
 
 // --- manual / structural guards ---
-export function isArray(x: unknown): x is unknown[];
-export function isArr(x: unknown): x is unknown[];
+export function isArray<T>(x: T): x is ArrayPart<T>;
+export function isArr<T>(x: T): x is ArrayPart<T>;
 export function isDefined<T>(x: T | null | undefined): x is T;
 export function isNullish(x: unknown): x is null | undefined;
 export function isNil(x: unknown): x is null;
@@ -140,8 +156,8 @@ export function assertUndefined(x: unknown): asserts x is undefined;
 export function assertUndef(x: unknown): asserts x is undefined;
 export function assertFunc(x: unknown): asserts x is (...args: any[]) => any;
 
-export function assertArray(x: unknown): asserts x is unknown[];
-export function assertArr(x: unknown): asserts x is unknown[];
+export function assertArray<T>(x: T): asserts x is ArrayPart<T>;
+export function assertArr<T>(x: T): asserts x is ArrayPart<T>;
 export function assertDefined<T>(x: T | null | undefined): asserts x is T;
 export function assertNullish(x: unknown): asserts x is null | undefined;
 export function assertNil(x: unknown): asserts x is null;
@@ -234,7 +250,7 @@ export namespace is {
   function intlCollator(x: unknown): x is Intl.Collator;
 
   function numberSafe(x: unknown): x is number;
-  function array(x: unknown): x is unknown[];
+  function array<T>(x: T): x is ArrayPart<T>;
   function defined<T>(x: T | null | undefined): x is T;
   function nullish(x: unknown): x is null | undefined;
   function nil(x: unknown): x is null;
@@ -247,7 +263,7 @@ export namespace is {
   function objectLoose(x: unknown): x is object;
 
   function obj(x: unknown): x is object;
-  function arr(x: unknown): x is unknown[];
+  function arr<T>(x: T): x is ArrayPart<T>;
 
   function truthy<T>(x: T): x is Truthy<T>;
   function falsy(x: unknown): x is Falsy;
@@ -277,8 +293,8 @@ export namespace assertType {
   function sym(x: unknown): asserts x is symbol;
   function undef(x: unknown): asserts x is undefined;
 
-  function array(x: unknown): asserts x is unknown[];
-  function arr(x: unknown): asserts x is unknown[];
+  function array<T>(x: T): asserts x is ArrayPart<T>;
+  function arr<T>(x: T): asserts x is ArrayPart<T>;
   function numberSafe(x: unknown): asserts x is number;
   function object(x: unknown): asserts x is object;
   function obj(x: unknown): asserts x is object;

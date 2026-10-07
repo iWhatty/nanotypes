@@ -1,6 +1,6 @@
 {
     "name": "nanotypes",
-    "version": "0.2.3",
+    "version": "0.2.4",
     "description": "Minimal, runtime-safe type checks for modern JS & TS",
     "type": "module",
     "engines": {
@@ -30,7 +30,8 @@
     },
     "scripts": {
         "build": "node esbuild.config.js",
-        "test": "node ./test/smokeTest.js && npm run build && node ./test/distSafety.js",
+        "test": "node ./test/smokeTest.js && npm run build && node ./test/distSafety.js && npm run test:types",
+        "test:types": "tsc -p test/types/tsconfig.json && tsc -p test/types/tsconfig.loose.json",
         "prepublishOnly": "npm test"
     },
     "keywords": [
@@ -49,6 +50,7 @@
     "license": "SEE LICENSE IN LICENSE",
     "sideEffects": false,
     "devDependencies": {
-        "esbuild": "^0.25.4"
+        "esbuild": "^0.25.4",
+        "typescript": "^6.0.3"
     }
 }
