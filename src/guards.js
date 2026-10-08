@@ -195,7 +195,7 @@ export const isFinite = isFiniteNumber;
 // installed after import (jsdom, polyfills) is seen. No module-level
 // feature-detection constants: those are top-level property reads that a
 // bundler must keep, which pulled all of them into every single-guard
-// import (about 2 KB) before 0.2.6.
+// import (about 2 KB) before 0.3.0.
 // =============================================================================
 
 // --- Universal collections ---

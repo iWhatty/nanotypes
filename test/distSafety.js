@@ -15,7 +15,7 @@
 // 5. Tree-shake: a consumer importing one named guard or assert does not
 //    bundle the `is` / `assertType` namespace builders (the 0.2.1 / 0.2.2
 //    regressions), and stays under a byte budget (minified, esbuild). Before
-//    0.2.6 every single-guard import carried ~60 module-level feature checks
+//    0.3.0 every single-guard import carried ~60 module-level feature checks
 //    from guards.js: ~2.1 KB minified.
 // Run after `npm run build`.
 import { build } from 'esbuild';
@@ -75,7 +75,7 @@ failures += runGuardSafety('dist', distIndex, distAuto);
 // (assertType.js); neither appears in guards, asserts, or describe. The
 // `is` consumer is the positive control that the marker still matches.
 const NAMESPACE_BUILDER = /\.charAt\([26]\)/;
-// Budgets are minified bytes (not gzipped), with headroom over the 0.2.6
+// Budgets are minified bytes (not gzipped), with headroom over the 0.3.0
 // measurements: typeof guards ~50 B, isObject ~120 B, instanceof guards
 // ~130 B, isPlainObject ~160 B, asserts ~660 B (guard + describe + env).
 const GUARD_BUDGET = 250;

@@ -1,6 +1,6 @@
 // ./test/types/finiteNumber.test.ts
 //
-// isFiniteNumber (0.2.6) and its deprecated alias isFinite narrow to number
+// isFiniteNumber (0.3.0) and its deprecated alias isFinite narrow to number
 // on every surface, checked against the built dist/index.d.ts.
 import {
   assertFinite,

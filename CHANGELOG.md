@@ -2,8 +2,9 @@
 
 > Initial cut seeded from `git log` by the host repo's `tools/seed-changelogs.mjs` script. Version groupings infer release boundaries from tags and commit subjects; rough cuts are expected — review and tighten as part of normal maintenance.
 
-## 0.2.6 — unreleased
+## 0.3.0 — unreleased
 
+- **Breaking: `isPlainObject` / `isPojo` is prototype-only.** It is true when `Object.getPrototypeOf(x)` is `Object.prototype` or `null`, whatever `Symbol.toStringTag` says. Objects that carry a tag but have a plain prototype, such as `Math`, `JSON`, and `arguments` objects, now return `true` (0.2.x returned `false`). For the 0.2.x result, use `isObjectStrict(x) && isPlainObject(x)`.
 - **fix(guards): a single-guard import bundles only that guard.** `guards.js` had about 60 module-level `const HAS_X = typeof globalThis.X ...` feature checks. They are top-level property reads, which a bundler must keep, so `import { isObject }` bundled all of them: 2,137 B minified (600 B gz) with esbuild. Feature detection now happens inside each guard (`(x) => inst(x, globalThis.X)`), and the module has no top-level side effects.
   - Single-guard imports, esbuild bundle + minify, ESM: `isObject` 2,137 → 118 B (600 → 124 B gz), `isString` 2,111 → 46 B, `isMap` 2,106 → 130 B, `isPlainObject` 2,242 → 159 B, `assertObject` 2,613 → 658 B (846 → 387 B gz). The full `is` namespace: 7,160 → 4,828 B (2,345 → 1,868 B gz).
   - Instanceof guards look the constructor up when they run, not at import. A global installed after import (jsdom, a polyfill) is now seen; before, the guard stayed `false`.
