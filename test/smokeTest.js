@@ -137,6 +137,11 @@ for (const [name, fn, pos, neg] of assertSamples) {
   if (!posOk || !negThrew) process.exitCode = 1;
 }
 
+// --- Null-check family (isNull / isNil / isNullish / isDefined) ---
+console.log('\n--- null checks (named, is.*, assertType.*, /auto) ---');
+const { runNullChecks } = await import('./nullChecks.js');
+if (runNullChecks('src', defaultMod, autoMod)) process.exitCode = 1;
+
 // --- Null-proto describe check ---
 console.log('\n describe.value(Object.create(null)):', describeMod.describe.value(Object.create(null)));
 

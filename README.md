@@ -95,7 +95,8 @@ Guards are generated dynamically from available runtime constructors. Some guard
 | `is.undefined(x)` / `is.undef(x)` | Strictly `undefined`                     |
 | `is.defined(x)`                   | Not `null` or `undefined`                |
 | `is.nullish(x)`                   | `null` or `undefined`                    |
-| `is.nil(x)`                       | Strictly `null`                          |
+| `is.null(x)`                      | Strictly `null`                          |
+| `is.nil(x)`                       | Strictly `null` (not lodash's `isNil`)   |
 | `is.array(x)` / `is.arr(x)`       | Array literal check                      |
 | `is.object(x)` / `is.obj(x)`      | Non-null object, not array               |
 | `is.objectStrict(x)`              | Exactly a `{}` object                    |
@@ -115,6 +116,19 @@ Guards are generated dynamically from available runtime constructors. Some guard
 | `is.falsy(x)`                     | Falsy value                              |
 
 > **Note:** `is.number(x)` follows standard JavaScript semantics and returns `true` for `NaN`. Use `is.numberSafe(x)` if you require a numeric value that is not `NaN`.
+
+### Null checks
+
+| Named export | Namespace       | True for                     | Same as      |
+| ------------ | --------------- | ---------------------------- | ------------ |
+| `isNull`     | `is.null`       | `null` only                  | `x === null` |
+| `isNil`      | `is.nil`        | `null` only (alias of `isNull`; differs from lodash) | `x === null` |
+| `isNullish`  | `is.nullish`    | `null` or `undefined`        | `x == null`  |
+| `isDefined`  | `is.defined`    | neither `null` nor `undefined` | `x != null` |
+
+Each has an assert: `assertNull` / `assertType.null`, `assertNil` / `assertType.nil`, `assertNullish` / `assertType.nullish`, `assertDefined` / `assertType.defined`.
+
+> **Coming from lodash or Ramda?** Their `isNil(x)` is true for `null` **or** `undefined`. In nanotypes that is `isNullish(x)`. nanotypes' `isNil(undefined)` is `false`. Prefer `isNull` when you mean strictly `null`, so readers don't have to remember the difference.
 
 ### Assertive guards
 

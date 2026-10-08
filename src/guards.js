@@ -64,11 +64,23 @@ export const isNumberSafe = (x) => typeof x === 'number' && !Number.isNaN(x);
 export const isArray = (x) => Array.isArray(x);
 export const isArr = isArray;
 
+// Null checks. isNull and isNil are strictly `null`. lodash/Ramda's isNil
+// (null OR undefined) is isNullish here.
+
+/** Neither `null` nor `undefined` (`x != null`). */
 export const isDefined = (x) => x !== undefined && x !== null;
 
+/** `null` or `undefined` (`x == null`). This is lodash's `isNil`. */
 export const isNullish = (x) => x === undefined || x === null;
 
-export const isNil = (x) => x === null;
+/** Strictly `null` (`x === null`); `undefined` is false. */
+export const isNull = (x) => x === null;
+
+/**
+ * Strictly `null`, same as `isNull`. Not lodash's `isNil` (null or
+ * undefined): use `isNullish` for that.
+ */
+export const isNil = isNull;
 
 // Basic object check: excludes null and arrays. Matches most non-null
 // object-like values (including class instances, DOM nodes, etc.)

@@ -1,6 +1,7 @@
 // ./src/index.d.ts
 //
-// Two parallel surfaces:
+// Two parallel surfaces (0.2.5: the namespaces are typed as interfaces,
+// IsNamespace and AssertTypeNamespace, so they can carry the `null` key):
 //   - Per-guard named exports (tree-shakeable): isString, isObject, ...
 //     and assertString, assertObject, ... — long form plus shorthand
 //     parity (isStr, isNum, ...) for the typeof-table primitives and
@@ -29,11 +30,8 @@ type ArrayPart<T> = unknown extends T
     ? T & unknown[]
     : Extract<T, readonly unknown[]>;
 
-// =============================================================================
-// Generic instanceof + assertType (callable signatures)
-// =============================================================================
-export function is<T>(x: unknown, constructor: new (...args: any[]) => T): x is T;
-export function assertType<T>(x: unknown, constructor: new (...args: any[]) => T): asserts x is T;
+// The generic instanceof forms `is(x, Ctor)` and `assertType(x, Ctor)` are
+// the call signatures of `IsNamespace` and `AssertTypeNamespace` below.
 
 // =============================================================================
 // Per-guard named exports (tree-shakeable)
@@ -58,8 +56,19 @@ export function isFunc(x: unknown): x is (...args: any[]) => any;
 // --- manual / structural guards ---
 export function isArray<T>(x: T): x is ArrayPart<T>;
 export function isArr<T>(x: T): x is ArrayPart<T>;
+// Null checks. `isNull` and `isNil` are strictly `null` (`x === null`).
+// Coming from lodash/Ramda, where `isNil` means null OR undefined? Use
+// `isNullish` for that.
+/** True when `x` is neither `null` nor `undefined` (`x != null`). */
 export function isDefined<T>(x: T | null | undefined): x is T;
+/** True when `x` is `null` or `undefined` (`x == null`). This is lodash's `isNil`. */
 export function isNullish(x: unknown): x is null | undefined;
+/** True only when `x` is `null` (`x === null`); `undefined` is false. */
+export function isNull(x: unknown): x is null;
+/**
+ * True only when `x` is `null` (`x === null`); `undefined` is false. Same as
+ * `isNull`. Not lodash's `isNil` (null or undefined): use `isNullish` for that.
+ */
 export function isNil(x: unknown): x is null;
 export function isObject(x: unknown): x is object;
 export function isObj(x: unknown): x is object;
@@ -158,8 +167,16 @@ export function assertFunc(x: unknown): asserts x is (...args: any[]) => any;
 
 export function assertArray<T>(x: T): asserts x is ArrayPart<T>;
 export function assertArr<T>(x: T): asserts x is ArrayPart<T>;
+/** Throws `TypeError` when `x` is `null` or `undefined`. */
 export function assertDefined<T>(x: T | null | undefined): asserts x is T;
+/** Throws `TypeError` unless `x` is `null` or `undefined` (lodash's `isNil`). */
 export function assertNullish(x: unknown): asserts x is null | undefined;
+/** Throws `TypeError` unless `x` is `null`; `undefined` throws. */
+export function assertNull(x: unknown): asserts x is null;
+/**
+ * Throws `TypeError` unless `x` is `null`; `undefined` throws. Same check as
+ * `assertNull`. Not lodash's `isNil`: use `assertNullish` for null or undefined.
+ */
 export function assertNil(x: unknown): asserts x is null;
 export function assertObject(x: unknown): asserts x is object;
 export function assertObj(x: unknown): asserts x is object;
@@ -193,137 +210,153 @@ export function assertBlob(x: unknown): asserts x is Blob;
 // =============================================================================
 // Legacy `is` namespace (ergonomic, pulls full surface)
 // =============================================================================
-export namespace is {
-  function string(x: unknown): x is string;
-  function number(x: unknown): x is number;
-  function boolean(x: unknown): x is boolean;
-  function bigint(x: unknown): x is bigint;
-  function symbol(x: unknown): x is symbol;
-  function undefined(x: unknown): x is undefined;
-  function func(x: unknown): x is (...args: any[]) => any;
-  function str(x: unknown): x is string;
-  function num(x: unknown): x is number;
-  function bool(x: unknown): x is boolean;
-  function bigi(x: unknown): x is bigint;
-  function sym(x: unknown): x is symbol;
-  function undef(x: unknown): x is undefined;
+export interface IsNamespace {
+  /** Generic `instanceof` check; never throws. Warns in DEV on a mismatch. */
+  <T>(x: unknown, constructor: new (...args: any[]) => T): x is T;
+  string(x: unknown): x is string;
+  number(x: unknown): x is number;
+  boolean(x: unknown): x is boolean;
+  bigint(x: unknown): x is bigint;
+  symbol(x: unknown): x is symbol;
+  undefined(x: unknown): x is undefined;
+  func(x: unknown): x is (...args: any[]) => any;
+  str(x: unknown): x is string;
+  num(x: unknown): x is number;
+  bool(x: unknown): x is boolean;
+  bigi(x: unknown): x is bigint;
+  sym(x: unknown): x is symbol;
+  undef(x: unknown): x is undefined;
 
-  function textNode(x: unknown): x is Text;
-  function element(x: unknown): x is Element;
-  function htmlElement(x: unknown): x is HTMLElement;
-  function inputEvent(x: unknown): x is InputEvent;
-  function keyboardEvent(x: unknown): x is KeyboardEvent;
-  function mouseEvent(x: unknown): x is MouseEvent;
-  function focusEvent(x: unknown): x is FocusEvent;
-  function formData(x: unknown): x is FormData;
-  function comment(x: unknown): x is Comment;
-  function document(x: unknown): x is Document;
-  function node(x: unknown): x is Node;
-  function window(x: unknown): x is Window;
-  function file(x: unknown): x is File;
-  function fileList(x: unknown): x is FileList;
-  function image(x: unknown): x is HTMLImageElement;
-  function blob(x: unknown): x is Blob;
-  function canvas(x: unknown): x is HTMLCanvasElement;
-  function video(x: unknown): x is HTMLVideoElement;
-  function audio(x: unknown): x is HTMLAudioElement;
-  function date(x: unknown): x is Date;
-  function regExp(x: unknown): x is RegExp;
-  function map(x: unknown): x is Map<any, any>;
-  function set(x: unknown): x is Set<any>;
-  function weakMap(x: unknown): x is WeakMap<any, any>;
-  function weakSet(x: unknown): x is WeakSet<any>;
-  function arrayBuffer(x: unknown): x is ArrayBuffer;
-  function dataView(x: unknown): x is DataView;
-  function promise(x: unknown): x is Promise<any>;
-  function error(x: unknown): x is Error;
-  function headers(x: unknown): x is Headers;
-  function request(x: unknown): x is Request;
-  function response(x: unknown): x is Response;
-  function url(x: unknown): x is URL;
-  function urlSearchParams(x: unknown): x is URLSearchParams;
-  function worker(x: unknown): x is Worker;
-  function sharedWorker(x: unknown): x is SharedWorker;
-  function broadcastChannel(x: unknown): x is BroadcastChannel;
-  function intlDateTimeFormat(x: unknown): x is Intl.DateTimeFormat;
-  function intlNumberFormat(x: unknown): x is Intl.NumberFormat;
-  function intlCollator(x: unknown): x is Intl.Collator;
+  textNode(x: unknown): x is Text;
+  element(x: unknown): x is Element;
+  htmlElement(x: unknown): x is HTMLElement;
+  inputEvent(x: unknown): x is InputEvent;
+  keyboardEvent(x: unknown): x is KeyboardEvent;
+  mouseEvent(x: unknown): x is MouseEvent;
+  focusEvent(x: unknown): x is FocusEvent;
+  formData(x: unknown): x is FormData;
+  comment(x: unknown): x is Comment;
+  document(x: unknown): x is Document;
+  node(x: unknown): x is Node;
+  window(x: unknown): x is Window;
+  file(x: unknown): x is File;
+  fileList(x: unknown): x is FileList;
+  image(x: unknown): x is HTMLImageElement;
+  blob(x: unknown): x is Blob;
+  canvas(x: unknown): x is HTMLCanvasElement;
+  video(x: unknown): x is HTMLVideoElement;
+  audio(x: unknown): x is HTMLAudioElement;
+  date(x: unknown): x is Date;
+  regExp(x: unknown): x is RegExp;
+  map(x: unknown): x is Map<any, any>;
+  set(x: unknown): x is Set<any>;
+  weakMap(x: unknown): x is WeakMap<any, any>;
+  weakSet(x: unknown): x is WeakSet<any>;
+  arrayBuffer(x: unknown): x is ArrayBuffer;
+  dataView(x: unknown): x is DataView;
+  promise(x: unknown): x is Promise<any>;
+  error(x: unknown): x is Error;
+  headers(x: unknown): x is Headers;
+  request(x: unknown): x is Request;
+  response(x: unknown): x is Response;
+  url(x: unknown): x is URL;
+  urlSearchParams(x: unknown): x is URLSearchParams;
+  worker(x: unknown): x is Worker;
+  sharedWorker(x: unknown): x is SharedWorker;
+  broadcastChannel(x: unknown): x is BroadcastChannel;
+  intlDateTimeFormat(x: unknown): x is Intl.DateTimeFormat;
+  intlNumberFormat(x: unknown): x is Intl.NumberFormat;
+  intlCollator(x: unknown): x is Intl.Collator;
 
-  function numberSafe(x: unknown): x is number;
-  function array<T>(x: T): x is ArrayPart<T>;
-  function defined<T>(x: T | null | undefined): x is T;
-  function nullish(x: unknown): x is null | undefined;
-  function nil(x: unknown): x is null;
-  function contentEditable(x: unknown): x is HTMLElement;
+  numberSafe(x: unknown): x is number;
+  array<T>(x: T): x is ArrayPart<T>;
+  /** Neither `null` nor `undefined` (`x != null`). */
+  defined<T>(x: T | null | undefined): x is T;
+  /** `null` or `undefined` (`x == null`). This is lodash's `isNil`. */
+  nullish(x: unknown): x is null | undefined;
+  /** Strictly `null` (`x === null`); `undefined` is false. */
+  null(x: unknown): x is null;
+  /** Strictly `null`, same as `is.null`. Not lodash's `isNil`: use `is.nullish`. */
+  nil(x: unknown): x is null;
+  contentEditable(x: unknown): x is HTMLElement;
 
-  function object(x: unknown): x is object;
-  function objectStrict(x: unknown): x is Record<string, unknown>;
-  function plainObject(x: unknown): x is Record<string, unknown>;
-  function pojo(x: unknown): x is Record<string, unknown>;
-  function objectLoose(x: unknown): x is object;
+  object(x: unknown): x is object;
+  objectStrict(x: unknown): x is Record<string, unknown>;
+  plainObject(x: unknown): x is Record<string, unknown>;
+  pojo(x: unknown): x is Record<string, unknown>;
+  objectLoose(x: unknown): x is object;
 
-  function obj(x: unknown): x is object;
-  function arr<T>(x: T): x is ArrayPart<T>;
+  obj(x: unknown): x is object;
+  arr<T>(x: T): x is ArrayPart<T>;
 
-  function truthy<T>(x: T): x is Truthy<T>;
-  function falsy(x: unknown): x is Falsy;
-  function emptyString(x: unknown): x is '';
-  function nonEmptyString(x: unknown): x is string;
-  function positiveNumber(x: unknown): x is number;
-  function negativeNumber(x: unknown): x is number;
-  function integer(x: unknown): x is number;
-  function finite(x: unknown): x is number;
+  truthy<T>(x: T): x is Truthy<T>;
+  falsy(x: unknown): x is Falsy;
+  emptyString(x: unknown): x is '';
+  nonEmptyString(x: unknown): x is string;
+  positiveNumber(x: unknown): x is number;
+  negativeNumber(x: unknown): x is number;
+  integer(x: unknown): x is number;
+  finite(x: unknown): x is number;
 }
+export declare const is: IsNamespace;
 
 // =============================================================================
 // Legacy `assertType` namespace
 // =============================================================================
-export namespace assertType {
-  function string(x: unknown): asserts x is string;
-  function number(x: unknown): asserts x is number;
-  function boolean(x: unknown): asserts x is boolean;
-  function bigint(x: unknown): asserts x is bigint;
-  function symbol(x: unknown): asserts x is symbol;
-  function undefined(x: unknown): asserts x is undefined;
-  function func(x: unknown): asserts x is (...args: any[]) => any;
-  function str(x: unknown): asserts x is string;
-  function num(x: unknown): asserts x is number;
-  function bool(x: unknown): asserts x is boolean;
-  function bigi(x: unknown): asserts x is bigint;
-  function sym(x: unknown): asserts x is symbol;
-  function undef(x: unknown): asserts x is undefined;
+export interface AssertTypeNamespace {
+  /** Generic `instanceof` assertion; throws `TypeError` on a mismatch. */
+  <T>(x: unknown, constructor: new (...args: any[]) => T): asserts x is T;
+  string(x: unknown): asserts x is string;
+  number(x: unknown): asserts x is number;
+  boolean(x: unknown): asserts x is boolean;
+  bigint(x: unknown): asserts x is bigint;
+  symbol(x: unknown): asserts x is symbol;
+  undefined(x: unknown): asserts x is undefined;
+  func(x: unknown): asserts x is (...args: any[]) => any;
+  str(x: unknown): asserts x is string;
+  num(x: unknown): asserts x is number;
+  bool(x: unknown): asserts x is boolean;
+  bigi(x: unknown): asserts x is bigint;
+  sym(x: unknown): asserts x is symbol;
+  undef(x: unknown): asserts x is undefined;
 
-  function array<T>(x: T): asserts x is ArrayPart<T>;
-  function arr<T>(x: T): asserts x is ArrayPart<T>;
-  function numberSafe(x: unknown): asserts x is number;
-  function object(x: unknown): asserts x is object;
-  function obj(x: unknown): asserts x is object;
-  function defined<T>(x: T | null | undefined): asserts x is T;
-  function nullish(x: unknown): asserts x is null | undefined;
-  function nil(x: unknown): asserts x is null;
-  function contentEditable(x: unknown): asserts x is HTMLElement;
+  array<T>(x: T): asserts x is ArrayPart<T>;
+  arr<T>(x: T): asserts x is ArrayPart<T>;
+  numberSafe(x: unknown): asserts x is number;
+  object(x: unknown): asserts x is object;
+  obj(x: unknown): asserts x is object;
+  /** Throws unless `x` is neither `null` nor `undefined`. */
+  defined<T>(x: T | null | undefined): asserts x is T;
+  /** Throws unless `x` is `null` or `undefined` (lodash's `isNil`). */
+  nullish(x: unknown): asserts x is null | undefined;
+  /** Throws unless `x` is strictly `null`; `undefined` throws. */
+  null(x: unknown): asserts x is null;
+  /** Strictly `null`, same as `assertType.null`. Not lodash's `isNil`: use `assertType.nullish`. */
+  nil(x: unknown): asserts x is null;
+  contentEditable(x: unknown): asserts x is HTMLElement;
 
-  function objectStrict(x: unknown): asserts x is Record<string, unknown>;
-  function plainObject(x: unknown): asserts x is Record<string, unknown>;
-  function pojo(x: unknown): asserts x is Record<string, unknown>;
-  function objectLoose(x: unknown): asserts x is object;
+  objectStrict(x: unknown): asserts x is Record<string, unknown>;
+  plainObject(x: unknown): asserts x is Record<string, unknown>;
+  pojo(x: unknown): asserts x is Record<string, unknown>;
+  objectLoose(x: unknown): asserts x is object;
 
-  function promise(x: unknown): asserts x is Promise<any>;
-  function date(x: unknown): asserts x is Date;
-  function error(x: unknown): asserts x is Error;
-  function url(x: unknown): asserts x is URL;
-  function blob(x: unknown): asserts x is Blob;
-  function htmlElement(x: unknown): asserts x is HTMLElement;
+  promise(x: unknown): asserts x is Promise<any>;
+  date(x: unknown): asserts x is Date;
+  error(x: unknown): asserts x is Error;
+  url(x: unknown): asserts x is URL;
+  blob(x: unknown): asserts x is Blob;
+  htmlElement(x: unknown): asserts x is HTMLElement;
 
-  function truthy<T>(x: T): asserts x is Truthy<T>;
-  function falsy(x: unknown): asserts x is Falsy;
-  function emptyString(x: unknown): asserts x is '';
-  function nonEmptyString(x: unknown): asserts x is string;
-  function positiveNumber(x: unknown): asserts x is number;
-  function negativeNumber(x: unknown): asserts x is number;
-  function integer(x: unknown): asserts x is number;
-  function finite(x: unknown): asserts x is number;
+  truthy<T>(x: T): asserts x is Truthy<T>;
+  falsy(x: unknown): asserts x is Falsy;
+  emptyString(x: unknown): asserts x is '';
+  nonEmptyString(x: unknown): asserts x is string;
+  positiveNumber(x: unknown): asserts x is number;
+  negativeNumber(x: unknown): asserts x is number;
+  integer(x: unknown): asserts x is number;
+  finite(x: unknown): asserts x is number;
 }
+export declare const assertType: AssertTypeNamespace;
 
 // =============================================================================
 // describe

@@ -32,6 +32,7 @@ import {
     isArray,
     isDefined,
     isNullish,
+    isNull,
     isNil,
     isObject,
     isObjectStrict,
@@ -143,12 +144,27 @@ export function assertDefined(x) {
     if (!isDefined(x)) throw new TypeError(`Expected defined, got ${describe.value(x)}`);
 }
 
-/** @param {unknown} x */
+/**
+ * Throws unless `x` is `null` or `undefined` (lodash's `isNil`).
+ * @param {unknown} x
+ */
 export function assertNullish(x) {
     if (!isNullish(x)) throw new TypeError(`Expected nullish, got ${describe.value(x)}`);
 }
 
-/** @param {unknown} x */
+/**
+ * Throws unless `x` is strictly `null`; `undefined` throws.
+ * @param {unknown} x
+ */
+export function assertNull(x) {
+    if (!isNull(x)) throw new TypeError(`Expected null, got ${describe.value(x)}`);
+}
+
+/**
+ * Throws unless `x` is strictly `null`, same check as `assertNull` (message
+ * kept as "Expected nil"). Not lodash's `isNil`: use `assertNullish`.
+ * @param {unknown} x
+ */
 export function assertNil(x) {
     if (!isNil(x)) throw new TypeError(`Expected nil, got ${describe.value(x)}`);
 }

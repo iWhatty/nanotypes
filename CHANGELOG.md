@@ -2,7 +2,18 @@
 
 > Initial cut seeded from `git log` by the host repo's `tools/seed-changelogs.mjs` script. Version groupings infer release boundaries from tags and commit subjects; rough cuts are expected — review and tighten as part of normal maintenance.
 
-## 0.2.4 — 2026-10-07
+## 0.2.5 — 2026-10-08
+
+- **feat: `isNull` and `assertNull`, plus `is.null` and `assertType.null`.** These are strictly `null` (`x === null`), the plain name for what `isNil` already does.
+  - In lodash and Ramda, `isNil` means `null` **or** `undefined`. In nanotypes, that is `isNullish`, and `isNil(undefined)` is `false`. So a reader coming from lodash can misread an `isNil` call; `isNull` can't be misread.
+  - `isNil` is unchanged: it is now the same function as `isNull`. `assertNil` keeps its "Expected nil" message, and `assertNull` says "Expected null".
+  - The README has a null-checks table (`isNull`, `isNil`, `isNullish`, `isDefined`) and a "coming from lodash?" note. JSDoc on each declaration states the exact check.
+- **types: the `is` and `assertType` namespaces are declared as interfaces, `IsNamespace` and `AssertTypeNamespace`.** A TypeScript `namespace` cannot declare a member named `null`. The call signatures (`is(x, Ctor)`, `assertType(x, Ctor)`) and every other member are unchanged, and both type names are now exported.
+- `isNull` is an arrow `const` in `guards.js` and `assertNull` a function declaration in `asserts.js`, like the other guards and asserts. A consumer that imports only `isNull` bundles to 590 B gz with esbuild, the same as `isNil` in 0.2.4, and does not pull in the namespace builders.
+- test:
+  - `test/nullChecks.js` checks `isNull`, `isNil`, `isNullish`, and `isDefined` against `===` / `==` on 13 values (`null`, `undefined`, `0`, `-0`, `''`, `'null'`, `false`, `NaN`, `0n`, `{}`, `[]`, a null-prototype object, and a function). It covers the named exports, the `is.*` and `/auto` namespaces, and every assert (throws a `TypeError` with the right message exactly when the guard is false). `smokeTest.js` runs it on `src/`, and `distSafety.js` on `dist/`.
+  - `distSafety.js` also bundles single-import consumers (`isNull`, `isNil`, `assertNull`, `isString`) from `dist/` with esbuild and fails if the namespace builders are included; `import { is }` is the positive control.
+  - `test/types/nullChecks.test.ts` checks the narrowing of every null-check form, else branches included, in strict and loose mode. It fails on the 0.2.4 declarations (19 errors strict, 14 loose).
 
 - **types(isArray): keep element types when narrowing a union with a readonly array.** `isArray`, `isArr`, `assertArray`, `assertArr`, `is.array`, `is.arr`, `assertType.array`, and `assertType.arr` were declared `x is unknown[]`.
   - A `ReadonlyArray<E>` is not an `unknown[]`, so on `Map<K, V> | ReadonlyArray<E>` TypeScript intersected instead of filtering, and the element type became `unknown`.
