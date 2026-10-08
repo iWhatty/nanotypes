@@ -39,7 +39,12 @@ function isAuto(value, Type) {
         }
         return result;
     } catch (err) {
-        if (DEV) console.warn(`instanceof check failed for ${Type?.name ?? '<unknown>'}`, err);
+        // Reading Type.name can throw too (a hostile proxy); never rethrow.
+        if (DEV) {
+            try {
+                console.warn(`instanceof check failed for ${Type?.name ?? '<unknown>'}`, err);
+            } catch {}
+        }
         return false;
     }
 }

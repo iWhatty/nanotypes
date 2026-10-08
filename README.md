@@ -7,7 +7,7 @@
 [![stars](https://img.shields.io/github/stars/iWhatty/nanotypes?style=social)](https://github.com/iWhatty/nanotypes)
 [![types](https://img.shields.io/npm/types/nanotypes)](https://www.npmjs.com/package/nanotypes)
 
-Minimal, runtime-safe type guards for modern JavaScript. Two surfaces, same package: an ergonomic `is` namespace, plus per-guard named exports that tree-shake to ~600 bytes gzipped for a single guard. Zero dependencies.
+Minimal, runtime-safe type guards for modern JavaScript. Two surfaces, same package: an ergonomic `is` namespace, plus per-guard named exports where a single guard bundles to about 50-200 bytes minified. Zero dependencies.
 
 ## Features
 
@@ -38,7 +38,7 @@ pnpm add nanotypes
 
 Two import styles, same package, choose by bundle-size sensitivity.
 
-**Per-guard named exports** (recommended for size-sensitive bundles, tree-shakes to ~600 bytes gzipped for a single guard):
+**Per-guard named exports** (recommended for size-sensitive bundles; `import { isObject }` bundles to about 120 bytes minified, an assert to about 650 bytes):
 
 ```js
 import { isString, isObject, assertString } from 'nanotypes';
@@ -50,7 +50,7 @@ if (isString("hello")) {
 assertString(maybeText); // throws TypeError if not a string
 ```
 
-**Legacy `is` / `assertType` namespaces** (ergonomic, pulls the full ~2.3 KB gzipped surface):
+**Legacy `is` / `assertType` namespaces** (ergonomic, pulls the full ~1.9 KB gzipped surface):
 
 ```js
 import { is, assertType, describe } from 'nanotypes';
@@ -99,8 +99,8 @@ Guards are generated dynamically from available runtime constructors. Some guard
 | `is.nil(x)`                       | Strictly `null` (not lodash's `isNil`)   |
 | `is.array(x)` / `is.arr(x)`       | Array literal check                      |
 | `is.object(x)` / `is.obj(x)`      | Non-null object, not array               |
-| `is.objectStrict(x)`              | Exactly a `{}` object                    |
-| `is.plainObject(x)`               | Object with prototype `Object` or `null` |
+| `is.objectStrict(x)`              | `Object.prototype.toString` gives `[object Object]` (object literals, null-prototype objects, class instances; not if `Symbol.toStringTag` is set) |
+| `is.plainObject(x)`               | Prototype is `Object.prototype` or `null` (see below) |
 | `is.func(x)`                      | Function check                           |
 | `is.map(x)`                       | Instance of `Map`                        |
 | `is.date(x)`                      | Instance of `Date`                       |
@@ -111,11 +111,16 @@ Guards are generated dynamically from available runtime constructors. Some guard
 | `is.positiveNumber(x)`            | Greater than 0                           |
 | `is.negativeNumber(x)`            | Less than 0                              |
 | `is.integer(x)`                   | Whole number                             |
-| `is.finite(x)`                    | Not `Infinity`, not `NaN`                |
+| `is.finiteNumber(x)`              | Number, not `NaN` or ±`Infinity`; no coercion (`Number.isFinite`) |
+| `is.finite(x)`                    | Same as `is.finiteNumber`                |
 | `is.truthy(x)`                    | Narrowed to non-falsy value              |
 | `is.falsy(x)`                     | Falsy value                              |
 
 > **Note:** `is.number(x)` follows standard JavaScript semantics and returns `true` for `NaN`. Use `is.numberSafe(x)` if you require a numeric value that is not `NaN`.
+
+> **`isFiniteNumber`, not `isFinite`.** The named export `isFinite` is deprecated: importing it shadows the global `isFinite`, which coerces (`isFinite("1") === true`), while nanotypes' never does (`isFiniteNumber("1") === false`). `isFinite` and `assertFinite` stay as aliases of `isFiniteNumber` and `assertFiniteNumber`.
+
+> **`isPlainObject` / `isPojo`** decides by `Object.getPrototypeOf(x)` alone: true when `x` is a non-null, non-function object whose prototype is this realm's `Object.prototype`, or `null`. It reads no property of `x`, so `Symbol.toStringTag` is ignored (`{ [Symbol.toStringTag]: "X" }` is plain) and no getter runs. Arrays, class instances, `Object.create(proto)`, and objects from another realm (iframe, `vm`) are not plain. A proxy is judged by its `getPrototypeOf` trap; a revoked proxy or a throwing trap gives `false`. Use `isObjectStrict` when you want the `toString`-tag check instead.
 
 ### Null checks
 
@@ -194,18 +199,17 @@ nanotypes is hardened for modern environments:
 - No crashes from missing browser globals (e.g., `HTMLElement` in Node)
 - Defensive `instanceof` handling
 - Works consistently across Node, browsers, workers, and edge runtimes
-- Guards never throw, they return `false`
+- Guards never throw, they return `false` (revoked proxies and throwing proxy traps included)
+- Guards don't run the value's code: no getters, `Symbol.toPrimitive`, or `toString` (exceptions: `isObjectStrict` reads `Symbol.toStringTag`, and `isContentEditable` reads `isContentEditable` on an `HTMLElement`)
 - Assertions throw clean `TypeError` messages with readable descriptions
 
 ### Runtime-adaptive behavior
 
-The default entry ships a curated static map of well-known constructors. Each guard is feature-detected at module load, so browser-only constructors (like `HTMLElement`) will not exist when you `import { is }` from Node.
-
-If writing universal libraries, defensive-check before calling:
+The default entry ships a curated static set of well-known constructors. Every guard always exists; an instanceof guard looks its constructor up on `globalThis` when it runs, so `isHtmlElement(x)` is `false` in Node rather than throwing, and a global installed after import (jsdom, a polyfill) is picked up.
 
 ```js
-if (typeof is.htmlElement === 'function' && is.htmlElement(node)) {
-  // browser-only logic
+if (is.htmlElement(node)) {
+  // browser-only logic; false in Node
 }
 ```
 

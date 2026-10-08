@@ -14,13 +14,18 @@ export const describe = {
    */
   value(x) {
     if (x === null) return 'null';
-    if (x === undefined) return 'undefined';
-    if (Array.isArray(x)) return 'Array';
-    if (typeof x === "object") {
+    if (typeof x !== "object") return typeof x;
+    // Never throws, so an assert always throws its own TypeError: a revoked
+    // proxy or a throwing trap or `constructor` getter falls back to
+    // "object". A `constructor` getter on the value does run.
+    try {
+      if (Array.isArray(x)) return 'Array';
       if (Object.getPrototypeOf(x) === null) return "Object(null prototype)";
-      return x.constructor?.name || "Object";
+      const name = x.constructor?.name;
+      return typeof name === "string" && name ? name : "Object";
+    } catch {
+      return "object";
     }
-    return typeof x;
   }
 };
 
