@@ -142,6 +142,11 @@ console.log('\n--- null checks (named, is.*, assertType.*, /auto) ---');
 const { runNullChecks } = await import('./nullChecks.js');
 if (runNullChecks('src', defaultMod, autoMod)) process.exitCode = 1;
 
+// --- Never throw, never run the value's code; isPlainObject; isFiniteNumber ---
+console.log('\n--- guard safety (hostile values, isPlainObject, isFiniteNumber) ---');
+const { runGuardSafety } = await import('./guardSafety.js');
+if (runGuardSafety('src', defaultMod, autoMod)) process.exitCode = 1;
+
 // --- Null-proto describe check ---
 console.log('\n describe.value(Object.create(null)):', describeMod.describe.value(Object.create(null)));
 

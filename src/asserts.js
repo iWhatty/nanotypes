@@ -46,7 +46,7 @@ import {
     isPositiveNumber,
     isNegativeNumber,
     isInteger,
-    isFinite,
+    isFiniteNumber,
     isMap, isSet, isWeakMap, isWeakSet,
     isDate, isRegExp,
     isError, isTypeError, isRangeError, isSyntaxError, isReferenceError, isUriError,
@@ -236,8 +236,17 @@ export function assertInteger(x) {
 }
 
 /** @param {unknown} x */
+export function assertFiniteNumber(x) {
+    if (!isFiniteNumber(x)) throw new TypeError(`Expected finiteNumber, got ${describe.value(x)}`);
+}
+
+/**
+ * @deprecated Use `assertFiniteNumber`. Same check; keeps its
+ * "Expected finite" message.
+ * @param {unknown} x
+ */
 export function assertFinite(x) {
-    if (!isFinite(x)) throw new TypeError(`Expected finite, got ${describe.value(x)}`);
+    if (!isFiniteNumber(x)) throw new TypeError(`Expected finite, got ${describe.value(x)}`);
 }
 
 // =============================================================================

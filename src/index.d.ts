@@ -72,7 +72,19 @@ export function isNull(x: unknown): x is null;
 export function isNil(x: unknown): x is null;
 export function isObject(x: unknown): x is object;
 export function isObj(x: unknown): x is object;
+/**
+ * `Object.prototype.toString.call(x) === '[object Object]'`: object literals,
+ * null-prototype objects, and class instances without a `Symbol.toStringTag`.
+ * Reads `Symbol.toStringTag` (a getter runs); never throws.
+ */
 export function isObjectStrict(x: unknown): x is Record<string, unknown>;
+/**
+ * A non-null, non-function object whose prototype is this realm's
+ * `Object.prototype` or `null`, decided by `Object.getPrototypeOf` only (no
+ * property reads; `Symbol.toStringTag` is ignored). Cross-realm objects and
+ * class instances are false. Never throws: a revoked proxy or a throwing
+ * getPrototypeOf trap is false.
+ */
 export function isPlainObject(x: unknown): x is Record<string, unknown>;
 export function isPojo(x: unknown): x is Record<string, unknown>;
 export function isObjectLoose(x: unknown): x is object;
@@ -86,9 +98,16 @@ export function isNonEmptyString(x: unknown): x is string;
 export function isPositiveNumber(x: unknown): x is number;
 export function isNegativeNumber(x: unknown): x is number;
 export function isInteger(x: unknown): x is number;
+/** A number that is not `NaN` or +/-`Infinity` (`Number.isFinite`; no coercion). */
+export function isFiniteNumber(x: unknown): x is number;
+/**
+ * @deprecated Use `isFiniteNumber`. Same function: `Number.isFinite`, no
+ * coercion. As a named import it shadows the global `isFinite`, which
+ * coerces (`isFinite('1')` is true; this returns false).
+ */
 export function isFinite(x: unknown): x is number;
 
-// --- instanceof guards (gated by runtime feature-detect) ---
+// --- instanceof guards (constructor looked up at call time; false when missing; never throw) ---
 export function isMap(x: unknown): x is Map<unknown, unknown>;
 export function isSet(x: unknown): x is Set<unknown>;
 export function isWeakMap(x: unknown): x is WeakMap<object, unknown>;
@@ -193,6 +212,8 @@ export function assertNonEmptyString(x: unknown): asserts x is string;
 export function assertPositiveNumber(x: unknown): asserts x is number;
 export function assertNegativeNumber(x: unknown): asserts x is number;
 export function assertInteger(x: unknown): asserts x is number;
+export function assertFiniteNumber(x: unknown): asserts x is number;
+/** @deprecated Use `assertFiniteNumber`. Same check; message "Expected finite". */
 export function assertFinite(x: unknown): asserts x is number;
 
 export function assertMap(x: unknown): asserts x is Map<unknown, unknown>;
@@ -297,6 +318,7 @@ export interface IsNamespace {
   negativeNumber(x: unknown): x is number;
   integer(x: unknown): x is number;
   finite(x: unknown): x is number;
+  finiteNumber(x: unknown): x is number;
 }
 export declare const is: IsNamespace;
 
@@ -355,6 +377,7 @@ export interface AssertTypeNamespace {
   negativeNumber(x: unknown): asserts x is number;
   integer(x: unknown): asserts x is number;
   finite(x: unknown): asserts x is number;
+  finiteNumber(x: unknown): asserts x is number;
 }
 export declare const assertType: AssertTypeNamespace;
 

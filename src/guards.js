@@ -7,11 +7,36 @@
 // Naming:
 // - Long form mirrors the runtime type: isString, isNumber, isHtmlElement
 // - Shorthand aliases mirror the namespace shorthands: isStr, isNum, isBool
-// - Instanceof guards are gated by `typeof Constructor !== 'undefined'`
-//   so they return `false` instead of throwing in environments where the
-//   constructor is missing (e.g. is.htmlElement in Node).
+// - Instanceof guards look the constructor up on `globalThis` at call
+//   time, so they return `false` instead of throwing in environments where
+//   the constructor is missing (e.g. isHtmlElement in Node).
+//
+// Guarantees, for every guard in this file:
+// - Never throws. Revoked proxies and throwing proxy traps return `false`.
+// - Returns a strict boolean.
+// - Never reads a property of the value, so no getter, `Symbol.toStringTag`,
+//   `Symbol.toPrimitive`, or `toString` on the value runs. Only the
+//   documented exceptions do: `isObjectStrict` (reads `Symbol.toStringTag`,
+//   that is its definition) and `isContentEditable` (reads
+//   `isContentEditable` once the value is an `HTMLElement`). A proxy's own
+//   traps (`getPrototypeOf` for `instanceof` and `isPlainObject`) can still
+//   run; their throws are caught.
+//
+// Tree-shake: this module has no top-level side effects. Every export is an
+// arrow function or an alias, and feature detection happens inside the
+// guards, so `import { isObject }` bundles only `isObject`.
 
 const G = globalThis;
+
+// `x instanceof C`, false when C is missing or the check throws (a revoked
+// proxy, or a proxy whose getPrototypeOf trap throws).
+const inst = (x, C) => {
+    try {
+        return typeof C === 'function' && x instanceof C;
+    } catch {
+        return false;
+    }
+};
 
 // =============================================================================
 // Generic instanceof (for ad-hoc checks against user-supplied constructors)
@@ -61,7 +86,14 @@ export const isFunc = (x) => typeof x === 'function';
 
 export const isNumberSafe = (x) => typeof x === 'number' && !Number.isNaN(x);
 
-export const isArray = (x) => Array.isArray(x);
+// Array.isArray throws on a revoked proxy.
+export const isArray = (x) => {
+    try {
+        return Array.isArray(x);
+    } catch {
+        return false;
+    }
+};
 export const isArr = isArray;
 
 // Null checks. isNull and isNil are strictly `null`. lodash/Ramda's isNil
@@ -84,28 +116,52 @@ export const isNil = isNull;
 
 // Basic object check: excludes null and arrays. Matches most non-null
 // object-like values (including class instances, DOM nodes, etc.)
-export const isObject = (x) => !!(x && typeof x === 'object' && !Array.isArray(x));
+export const isObject = (x) => typeof x === 'object' && x !== null && !isArray(x);
 export const isObj = isObject;
 
-// Stricter check: only matches values whose [[Class]] is "Object".
-// Excludes Date, Map, DOM elements, etc.
-export const isObjectStrict = (x) => Object.prototype.toString.call(x) === '[object Object]';
+// `Object.prototype.toString` gives "[object Object]": true for object
+// literals, null-prototype objects, and class instances without a
+// `Symbol.toStringTag`; false for arrays, Date, Map, DOM elements, and any
+// object whose `Symbol.toStringTag` is set. It reads `Symbol.toStringTag`
+// (a getter there runs); a throw returns false. Use isPlainObject for a
+// prototype-only check.
+export const isObjectStrict = (x) => {
+    try {
+        return Object.prototype.toString.call(x) === '[object Object]';
+    } catch {
+        return false;
+    }
+};
 
-// POJO check: plain object with prototype of Object or null.
+// Plain object: a non-null object (not a function) whose prototype is
+// exactly this realm's `Object.prototype`, or `null`. Decided by
+// `Object.getPrototypeOf` alone; no property of the value is read, so
+// `Symbol.toStringTag` is ignored (`{ [Symbol.toStringTag]: 'X' }` is
+// plain). Arrays, class instances, `Object.create(someObject)`, and objects
+// from another realm (iframe, vm) are not plain. A proxy is judged by its
+// getPrototypeOf trap; a throwing trap or a revoked proxy returns false.
 export const isPlainObject = (x) => {
-    if (!isObjectStrict(x)) return false;
-    const proto = Object.getPrototypeOf(x);
-    return proto === Object.prototype || proto === null;
+    if (typeof x !== 'object' || x === null) return false;
+    try {
+        const proto = Object.getPrototypeOf(x);
+        return proto === Object.prototype || proto === null;
+    } catch {
+        return false;
+    }
 };
 export const isPojo = isPlainObject;
 
 // Loose object check: includes arrays, objects, and non-null values.
 export const isObjectLoose = (x) => typeof x === 'object' && x !== null;
 
-// Browser-only: HTMLElement that has contentEditable=true.
-const HAS_HTML_ELEMENT = typeof G.HTMLElement !== 'undefined';
-export const isContentEditable = (x) =>
-    !!(HAS_HTML_ELEMENT && x instanceof G.HTMLElement && x.isContentEditable === true);
+// Browser-only: HTMLElement whose `isContentEditable` is true.
+export const isContentEditable = (x) => {
+    try {
+        return inst(x, G.HTMLElement) && x.isContentEditable === true;
+    } catch {
+        return false;
+    }
+};
 
 // =============================================================================
 // Derived boolean / numeric helpers
@@ -120,194 +176,98 @@ export const isNonEmptyString = (x) => typeof x === 'string' && x.length > 0;
 export const isPositiveNumber = (x) => isNumberSafe(x) && x > 0;
 export const isNegativeNumber = (x) => isNumberSafe(x) && x < 0;
 export const isInteger = (x) => Number.isInteger(x);
-export const isFinite = (x) => Number.isFinite(x);
+
+/** A number that is not `NaN` or +/-`Infinity`, like `Number.isFinite`. No coercion: `isFiniteNumber('1')` is false. */
+export const isFiniteNumber = (x) => Number.isFinite(x);
+
+/**
+ * @deprecated Use `isFiniteNumber`. Same function. As a named import it
+ * shadows the global `isFinite`, which coerces (`isFinite('1')` is true);
+ * this one does not.
+ */
+export const isFinite = isFiniteNumber;
 
 // =============================================================================
-// Instanceof guards (gated by runtime feature-detection)
+// Instanceof guards (feature-detected at call time)
 //
-// Each pair is:
-//   const HAS_X = typeof G.X === 'function';
-//   export const isX = (v) => HAS_X && v instanceof G.X;
-//
-// In environments where the constructor is missing, the guard returns
-// `false` cleanly instead of throwing.
+// Each guard is `(x) => inst(x, G.X)`: the constructor is looked up when
+// the guard runs, so a missing constructor returns `false` and a global
+// installed after import (jsdom, polyfills) is seen. No module-level
+// feature-detection constants: those are top-level property reads that a
+// bundler must keep, which pulled all of them into every single-guard
+// import (about 2 KB) before 0.3.0.
 // =============================================================================
 
 // --- Universal collections ---
-const HAS_MAP = typeof G.Map === 'function';
-export const isMap = (x) => HAS_MAP && x instanceof G.Map;
-
-const HAS_SET = typeof G.Set === 'function';
-export const isSet = (x) => HAS_SET && x instanceof G.Set;
-
-const HAS_WEAK_MAP = typeof G.WeakMap === 'function';
-export const isWeakMap = (x) => HAS_WEAK_MAP && x instanceof G.WeakMap;
-
-const HAS_WEAK_SET = typeof G.WeakSet === 'function';
-export const isWeakSet = (x) => HAS_WEAK_SET && x instanceof G.WeakSet;
+export const isMap = (x) => inst(x, G.Map);
+export const isSet = (x) => inst(x, G.Set);
+export const isWeakMap = (x) => inst(x, G.WeakMap);
+export const isWeakSet = (x) => inst(x, G.WeakSet);
 
 // --- Core / errors ---
-const HAS_DATE = typeof G.Date === 'function';
-export const isDate = (x) => HAS_DATE && x instanceof G.Date;
-
-const HAS_REGEXP = typeof G.RegExp === 'function';
-export const isRegExp = (x) => HAS_REGEXP && x instanceof G.RegExp;
-
-const HAS_ERROR = typeof G.Error === 'function';
-export const isError = (x) => HAS_ERROR && x instanceof G.Error;
-
-const HAS_TYPE_ERROR = typeof G.TypeError === 'function';
-export const isTypeError = (x) => HAS_TYPE_ERROR && x instanceof G.TypeError;
-
-const HAS_RANGE_ERROR = typeof G.RangeError === 'function';
-export const isRangeError = (x) => HAS_RANGE_ERROR && x instanceof G.RangeError;
-
-const HAS_SYNTAX_ERROR = typeof G.SyntaxError === 'function';
-export const isSyntaxError = (x) => HAS_SYNTAX_ERROR && x instanceof G.SyntaxError;
-
-const HAS_REFERENCE_ERROR = typeof G.ReferenceError === 'function';
-export const isReferenceError = (x) => HAS_REFERENCE_ERROR && x instanceof G.ReferenceError;
-
-const HAS_URI_ERROR = typeof G.URIError === 'function';
-export const isUriError = (x) => HAS_URI_ERROR && x instanceof G.URIError;
-
-const HAS_PROMISE = typeof G.Promise === 'function';
-export const isPromise = (x) => HAS_PROMISE && x instanceof G.Promise;
+export const isDate = (x) => inst(x, G.Date);
+export const isRegExp = (x) => inst(x, G.RegExp);
+export const isError = (x) => inst(x, G.Error);
+export const isTypeError = (x) => inst(x, G.TypeError);
+export const isRangeError = (x) => inst(x, G.RangeError);
+export const isSyntaxError = (x) => inst(x, G.SyntaxError);
+export const isReferenceError = (x) => inst(x, G.ReferenceError);
+export const isUriError = (x) => inst(x, G.URIError);
+export const isPromise = (x) => inst(x, G.Promise);
 
 // --- Buffers / typed arrays ---
-const HAS_ARRAY_BUFFER = typeof G.ArrayBuffer === 'function';
-export const isArrayBuffer = (x) => HAS_ARRAY_BUFFER && x instanceof G.ArrayBuffer;
-
-const HAS_DATA_VIEW = typeof G.DataView === 'function';
-export const isDataView = (x) => HAS_DATA_VIEW && x instanceof G.DataView;
-
-const HAS_INT8 = typeof G.Int8Array === 'function';
-export const isInt8Array = (x) => HAS_INT8 && x instanceof G.Int8Array;
-
-const HAS_UINT8 = typeof G.Uint8Array === 'function';
-export const isUint8Array = (x) => HAS_UINT8 && x instanceof G.Uint8Array;
-
-const HAS_UINT8C = typeof G.Uint8ClampedArray === 'function';
-export const isUint8ClampedArray = (x) => HAS_UINT8C && x instanceof G.Uint8ClampedArray;
-
-const HAS_INT16 = typeof G.Int16Array === 'function';
-export const isInt16Array = (x) => HAS_INT16 && x instanceof G.Int16Array;
-
-const HAS_UINT16 = typeof G.Uint16Array === 'function';
-export const isUint16Array = (x) => HAS_UINT16 && x instanceof G.Uint16Array;
-
-const HAS_INT32 = typeof G.Int32Array === 'function';
-export const isInt32Array = (x) => HAS_INT32 && x instanceof G.Int32Array;
-
-const HAS_UINT32 = typeof G.Uint32Array === 'function';
-export const isUint32Array = (x) => HAS_UINT32 && x instanceof G.Uint32Array;
-
-const HAS_FLOAT32 = typeof G.Float32Array === 'function';
-export const isFloat32Array = (x) => HAS_FLOAT32 && x instanceof G.Float32Array;
-
-const HAS_FLOAT64 = typeof G.Float64Array === 'function';
-export const isFloat64Array = (x) => HAS_FLOAT64 && x instanceof G.Float64Array;
-
-const HAS_BIGINT64 = typeof G.BigInt64Array === 'function';
-export const isBigInt64Array = (x) => HAS_BIGINT64 && x instanceof G.BigInt64Array;
-
-const HAS_BIGUINT64 = typeof G.BigUint64Array === 'function';
-export const isBigUint64Array = (x) => HAS_BIGUINT64 && x instanceof G.BigUint64Array;
+export const isArrayBuffer = (x) => inst(x, G.ArrayBuffer);
+export const isDataView = (x) => inst(x, G.DataView);
+export const isInt8Array = (x) => inst(x, G.Int8Array);
+export const isUint8Array = (x) => inst(x, G.Uint8Array);
+export const isUint8ClampedArray = (x) => inst(x, G.Uint8ClampedArray);
+export const isInt16Array = (x) => inst(x, G.Int16Array);
+export const isUint16Array = (x) => inst(x, G.Uint16Array);
+export const isInt32Array = (x) => inst(x, G.Int32Array);
+export const isUint32Array = (x) => inst(x, G.Uint32Array);
+export const isFloat32Array = (x) => inst(x, G.Float32Array);
+export const isFloat64Array = (x) => inst(x, G.Float64Array);
+export const isBigInt64Array = (x) => inst(x, G.BigInt64Array);
+export const isBigUint64Array = (x) => inst(x, G.BigUint64Array);
 
 // --- URL / search ---
-const HAS_URL = typeof G.URL === 'function';
-export const isUrl = (x) => HAS_URL && x instanceof G.URL;
-
-const HAS_URL_SEARCH_PARAMS = typeof G.URLSearchParams === 'function';
-export const isUrlSearchParams = (x) => HAS_URL_SEARCH_PARAMS && x instanceof G.URLSearchParams;
+export const isUrl = (x) => inst(x, G.URL);
+export const isUrlSearchParams = (x) => inst(x, G.URLSearchParams);
 
 // --- Fetch ---
-const HAS_HEADERS = typeof G.Headers === 'function';
-export const isHeaders = (x) => HAS_HEADERS && x instanceof G.Headers;
-
-const HAS_REQUEST = typeof G.Request === 'function';
-export const isRequest = (x) => HAS_REQUEST && x instanceof G.Request;
-
-const HAS_RESPONSE = typeof G.Response === 'function';
-export const isResponse = (x) => HAS_RESPONSE && x instanceof G.Response;
-
-const HAS_FORM_DATA = typeof G.FormData === 'function';
-export const isFormData = (x) => HAS_FORM_DATA && x instanceof G.FormData;
-
-const HAS_BLOB = typeof G.Blob === 'function';
-export const isBlob = (x) => HAS_BLOB && x instanceof G.Blob;
-
-const HAS_FILE = typeof G.File === 'function';
-export const isFile = (x) => HAS_FILE && x instanceof G.File;
+export const isHeaders = (x) => inst(x, G.Headers);
+export const isRequest = (x) => inst(x, G.Request);
+export const isResponse = (x) => inst(x, G.Response);
+export const isFormData = (x) => inst(x, G.FormData);
+export const isBlob = (x) => inst(x, G.Blob);
+export const isFile = (x) => inst(x, G.File);
 
 // --- DOM ---
-const HAS_ELEMENT = typeof G.Element !== 'undefined';
-export const isElement = (x) => HAS_ELEMENT && x instanceof G.Element;
-
-const HAS_HTML_ELEMENT_INST = typeof G.HTMLElement !== 'undefined';
-export const isHtmlElement = (x) => HAS_HTML_ELEMENT_INST && x instanceof G.HTMLElement;
-
-const HAS_NODE = typeof G.Node !== 'undefined';
-export const isNode = (x) => HAS_NODE && x instanceof G.Node;
-
-const HAS_DOCUMENT = typeof G.Document !== 'undefined';
-export const isDocument = (x) => HAS_DOCUMENT && x instanceof G.Document;
-
-const HAS_WINDOW = typeof G.Window !== 'undefined';
-export const isWindow = (x) => HAS_WINDOW && x instanceof G.Window;
-
-const HAS_TEXT = typeof G.Text !== 'undefined';
-export const isTextNode = (x) => HAS_TEXT && x instanceof G.Text;
-
-const HAS_COMMENT = typeof G.Comment !== 'undefined';
-export const isComment = (x) => HAS_COMMENT && x instanceof G.Comment;
-
-const HAS_CANVAS = typeof G.HTMLCanvasElement !== 'undefined';
-export const isCanvas = (x) => HAS_CANVAS && x instanceof G.HTMLCanvasElement;
-
-const HAS_VIDEO = typeof G.HTMLVideoElement !== 'undefined';
-export const isVideo = (x) => HAS_VIDEO && x instanceof G.HTMLVideoElement;
-
-const HAS_AUDIO = typeof G.HTMLAudioElement !== 'undefined';
-export const isAudio = (x) => HAS_AUDIO && x instanceof G.HTMLAudioElement;
-
-const HAS_IMAGE = typeof G.HTMLImageElement !== 'undefined';
-export const isImage = (x) => HAS_IMAGE && x instanceof G.HTMLImageElement;
-
-const HAS_FILE_LIST = typeof G.FileList !== 'undefined';
-export const isFileList = (x) => HAS_FILE_LIST && x instanceof G.FileList;
+export const isElement = (x) => inst(x, G.Element);
+export const isHtmlElement = (x) => inst(x, G.HTMLElement);
+export const isNode = (x) => inst(x, G.Node);
+export const isDocument = (x) => inst(x, G.Document);
+export const isWindow = (x) => inst(x, G.Window);
+export const isTextNode = (x) => inst(x, G.Text);
+export const isComment = (x) => inst(x, G.Comment);
+export const isCanvas = (x) => inst(x, G.HTMLCanvasElement);
+export const isVideo = (x) => inst(x, G.HTMLVideoElement);
+export const isAudio = (x) => inst(x, G.HTMLAudioElement);
+export const isImage = (x) => inst(x, G.HTMLImageElement);
+export const isFileList = (x) => inst(x, G.FileList);
 
 // --- DOM events ---
-const HAS_INPUT_EVENT = typeof G.InputEvent !== 'undefined';
-export const isInputEvent = (x) => HAS_INPUT_EVENT && x instanceof G.InputEvent;
-
-const HAS_KEYBOARD_EVENT = typeof G.KeyboardEvent !== 'undefined';
-export const isKeyboardEvent = (x) => HAS_KEYBOARD_EVENT && x instanceof G.KeyboardEvent;
-
-const HAS_MOUSE_EVENT = typeof G.MouseEvent !== 'undefined';
-export const isMouseEvent = (x) => HAS_MOUSE_EVENT && x instanceof G.MouseEvent;
-
-const HAS_FOCUS_EVENT = typeof G.FocusEvent !== 'undefined';
-export const isFocusEvent = (x) => HAS_FOCUS_EVENT && x instanceof G.FocusEvent;
+export const isInputEvent = (x) => inst(x, G.InputEvent);
+export const isKeyboardEvent = (x) => inst(x, G.KeyboardEvent);
+export const isMouseEvent = (x) => inst(x, G.MouseEvent);
+export const isFocusEvent = (x) => inst(x, G.FocusEvent);
 
 // --- Worker family ---
-const HAS_WORKER = typeof G.Worker !== 'undefined';
-export const isWorker = (x) => HAS_WORKER && x instanceof G.Worker;
-
-const HAS_SHARED_WORKER = typeof G.SharedWorker !== 'undefined';
-export const isSharedWorker = (x) => HAS_SHARED_WORKER && x instanceof G.SharedWorker;
-
-const HAS_BROADCAST_CHANNEL = typeof G.BroadcastChannel !== 'undefined';
-export const isBroadcastChannel = (x) => HAS_BROADCAST_CHANNEL && x instanceof G.BroadcastChannel;
+export const isWorker = (x) => inst(x, G.Worker);
+export const isSharedWorker = (x) => inst(x, G.SharedWorker);
+export const isBroadcastChannel = (x) => inst(x, G.BroadcastChannel);
 
 // --- Intl (nested) ---
-const HAS_INTL = typeof G.Intl === 'object' && G.Intl !== null;
-
-const HAS_INTL_DTF = HAS_INTL && typeof G.Intl.DateTimeFormat === 'function';
-export const isIntlDateTimeFormat = (x) => HAS_INTL_DTF && x instanceof G.Intl.DateTimeFormat;
-
-const HAS_INTL_NF = HAS_INTL && typeof G.Intl.NumberFormat === 'function';
-export const isIntlNumberFormat = (x) => HAS_INTL_NF && x instanceof G.Intl.NumberFormat;
-
-const HAS_INTL_COL = HAS_INTL && typeof G.Intl.Collator === 'function';
-export const isIntlCollator = (x) => HAS_INTL_COL && x instanceof G.Intl.Collator;
+export const isIntlDateTimeFormat = (x) => inst(x, G.Intl?.DateTimeFormat);
+export const isIntlNumberFormat = (x) => inst(x, G.Intl?.NumberFormat);
+export const isIntlCollator = (x) => inst(x, G.Intl?.Collator);
