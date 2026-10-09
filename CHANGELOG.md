@@ -2,7 +2,28 @@
 
 > Initial cut seeded from `git log` by the host repo's `tools/seed-changelogs.mjs` script. Version groupings infer release boundaries from tags and commit subjects; rough cuts are expected — review and tighten as part of normal maintenance.
 
-## 0.3.0 — unreleased
+## 0.3.1 — unreleased
+
+- **fix(isObject): a revoked proxy is `false`, as the 0.3.0 entry said.** `isObject` / `isObj` (`is.object`, `is.obj`, and the `/auto` forms) returned `true` for a revoked proxy, with an object or an array target. They computed "not an array" as `!isArray(x)`, and `isArray`'s `false` also means "could not tell" (`Array.isArray` throws on a revoked proxy). `isObject` now runs its own `Array.isArray` in a `try`/`catch` and returns `false` when it throws. So `assertObject`, `assertObj`, `assertType.object` and `assertType.obj` now throw on a revoked proxy. Found by dice3D-js (T-034).
+  - The rule behind it, now written down in `docs/DESIGN.md`: a guard's `true` is a verified claim. A guard returns `true` only when it can verify every part of its definition; a part it cannot verify makes it `false`. So `false` means "not verified", not "verified the opposite".
+  - `isObjectLoose` stays `true` for a revoked proxy: `typeof` still answers, and that is its whole claim. `isFunc` is `true` for a revoked function proxy for the same reason. Every other guard is `false` on a revoked proxy.
+  - Single-guard bundle: `isObject` 118 → 114 B minified.
+- **fix(describe): `describe.value` runs no code on the value.** It read `x.constructor.name`, so a `constructor` getter on the value ran while an assert built its error message. It now reads the prototype's own `constructor` data property and that constructor's own `name` data property, by descriptor; a getter is not called. Same output for ordinary objects, class instances, `Object.create(Map.prototype)`, and other realms' objects. Differences: `{ get constructor() {...} }` describes as `"Object"` (the getter does not run); `Object.create(Object.create(Map.prototype))` describes as `"Object"`, not `"Map"`.
+  - Cost: about +90 B minified per assert-using bundle (`assertObject` 658 → 745 B min, 387 → 421 B gz), under the 900 B budget.
+- **fix(is, /auto): the DEV mismatch warning reads no property of the value.** `is(x, Type)` on the `is` namespace, its `/auto` twin, and every scanner-added `/auto` guard read `value.constructor.name` for the warning, which ran a getter in DEV. The warning now says `got <typeof value>` (or `null`) and still passes the value itself to `console.warn`. `import { is }`: 4,840 → 4,885 B min (1,873 → 1,876 B gz).
+- docs:
+  - `docs/DESIGN.md` (new, in the repo, not in the npm package): how lodash, `@sindresorhus/is`, es-toolkit, remeda, Node's `util.types` and TypeScript define the object family and null checks; the principles every guard follows and why; a decision table for `isObject`, `isObjectLoose`, `isObjectStrict`, `isPlainObject` and `isArray` over 28 awkward values; an audit of every guard and assert; and proposals for breaking or debatable changes (not implemented).
+  - README: a "Which guard do I want?" guide for the object family and the null checks, a "coming from lodash" mapping, and "`false` means not verified" in the design principles.
+  - JSDoc on `isObject`, `isObj`, `isObjectLoose`, `isArray`, `isNumberSafe`, `isFunc` and their namespace forms: the exact check, the revoked-proxy answer, and where the name differs from lodash (`isObject` excludes functions and arrays; `isObjectLoose` is lodash's `isObjectLike`). Types are unchanged.
+- test (`test/guardSafety.js`, run on `src/` and `dist/`):
+  - Exact values, not only "no throw, strict boolean": every guard form (276) on 10 hostile values (revoked proxies with object, array and function targets, proxies with throwing traps, throwing getters and conversions, a null-prototype object), 2,760 exact answers.
+  - Every assert form (328: named, `assertType.*`, `/auto`) throws a `TypeError` exactly when its guard is `false` on each hostile value.
+  - The `docs/DESIGN.md` decision table (28 values x 5 guards), and every alias and namespace form of those guards is the same function.
+  - The no-read check now covers `/auto`'s scanner guards and the generic `is(x, Type)` with DEV warnings on, and `describe.value` must not run a `constructor` getter.
+  - On the 0.3.0 sources the new checks fail 28 times on `src/` (DEV off) and 82 times on `dist/` (DEV on).
+  - Type tests pass on TypeScript 5.0.4, 5.4.5 and 6.0.3, strict and loose.
+
+## 0.3.0 — 2026-10-08
 
 - **Breaking: `isPlainObject` / `isPojo` is prototype-only.** It is true when `Object.getPrototypeOf(x)` is `Object.prototype` or `null`, whatever `Symbol.toStringTag` says. Objects that carry a tag but have a plain prototype, such as `Math`, `JSON`, and `arguments` objects, now return `true` (0.2.x returned `false`). For the 0.2.x result, use `isObjectStrict(x) && isPlainObject(x)`.
 - **fix(guards): a single-guard import bundles only that guard.** `guards.js` had about 60 module-level `const HAS_X = typeof globalThis.X ...` feature checks. They are top-level property reads, which a bundler must keep, so `import { isObject }` bundled all of them: 2,137 B minified (600 B gz) with esbuild. Feature detection now happens inside each guard (`(x) => inst(x, globalThis.X)`), and the module has no top-level side effects.
