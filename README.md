@@ -68,6 +68,51 @@ Both shapes are kept in lockstep. Every guard `isFoo` named export has a matchin
 
 ---
 
+## Which guard do I want?
+
+### Objects
+
+| You want to accept | Use | `true` for | `false` for |
+| --- | --- | --- | --- |
+| any non-null object, arrays included (lodash's `isObjectLike`) | `isObjectLoose` | `{}`, `[]`, class instances, `Map`, `Date`, boxed primitives | functions, `null`, primitives |
+| a non-null object that is not an array | `isObject` / `isObj` | `{}`, class instances, `Map`, `Date`, `Math`, boxed primitives | arrays, functions, `null`, primitives, revoked proxies |
+| a plain object: a literal, `Object.create(null)`, parsed JSON | `isPlainObject` / `isPojo` | `{}`, `Object.create(null)`, `Math`, `JSON` | class instances, `Map`, `Date`, arrays, another realm's `{}` |
+| an object whose `toString` tag is `Object`, from any realm | `isObjectStrict` | `{}`, class instances, another realm's `{}` | `Map`, `Date`, `Math`, arrays, anything with a `Symbol.toStringTag` (it reads the tag, so a tag getter runs) |
+| an array, from any realm | `isArray` / `isArr` | arrays, proxies of arrays | revoked proxies |
+| a function or class | `isFunc` | functions, classes | everything else |
+
+`isObject` is **not** lodash's `isObject`: lodash's is also true for functions and arrays. For that, write `isObjectLoose(x) || isFunc(x)`. The full table over 28 awkward values (proxies, other realms, boxed primitives) is in [docs/DESIGN.md](https://github.com/iWhatty/nanotypes/blob/main/docs/DESIGN.md#3-decision-table).
+
+### Null and undefined
+
+| You want | Use | Same as |
+| --- | --- | --- |
+| strictly `null` | `isNull` (or plain `x === null`) | `x === null` |
+| `null` or `undefined` (lodash's `isNil`) | `isNullish` | `x == null` |
+| neither `null` nor `undefined` | `isDefined` | `x != null` |
+| strictly `undefined` | `isUndefined` | `x === undefined` |
+
+`isNil` is strictly `null` here, **not** lodash's `isNil`. Prefer `isNull` or `isNullish`, which can't be misread.
+
+### Coming from lodash
+
+| lodash | nanotypes |
+| --- | --- |
+| `_.isObject` | `isObjectLoose(x) \|\| isFunc(x)` |
+| `_.isObjectLike` | `isObjectLoose` |
+| `_.isPlainObject` | `isPlainObject` (prototype only: false for another realm's `{}`, true for `Math`; reads no property) |
+| `_.isNil` | `isNullish` |
+| `_.isNull` | `isNull` |
+| `_.isFunction` | `isFunc` |
+| `_.isArray` | `isArray` |
+| `_.isFinite` | `isFiniteNumber` |
+
+### What `false` means
+
+A guard returns `true` only when it can verify every part of its definition, without throwing and without running the value's code. A part it cannot verify makes it `false`, so `false` means "not verified", not "verified the opposite". Example: a revoked proxy is `isObjectLoose` (`typeof` still works on it), but not `isObject` (`Array.isArray` throws on it, so "not an array" can't be verified) and not `isArray`. The rules and the reasons are in [docs/DESIGN.md](https://github.com/iWhatty/nanotypes/blob/main/docs/DESIGN.md).
+
+---
+
 ## API
 
 ### Generic matcher
@@ -97,11 +142,12 @@ Guards are generated dynamically from available runtime constructors. Some guard
 | `is.nullish(x)`                   | `null` or `undefined`                    |
 | `is.null(x)`                      | Strictly `null`                          |
 | `is.nil(x)`                       | Strictly `null` (not lodash's `isNil`)   |
-| `is.array(x)` / `is.arr(x)`       | Array literal check                      |
-| `is.object(x)` / `is.obj(x)`      | Non-null object, not array               |
+| `is.array(x)` / `is.arr(x)`       | `Array.isArray` (any realm); `false` for a revoked proxy |
+| `is.object(x)` / `is.obj(x)`      | Non-null object, not array, not function (not lodash's `isObject`) |
 | `is.objectStrict(x)`              | `Object.prototype.toString` gives `[object Object]` (object literals, null-prototype objects, class instances; not if `Symbol.toStringTag` is set) |
 | `is.plainObject(x)`               | Prototype is `Object.prototype` or `null` (see below) |
-| `is.func(x)`                      | Function check                           |
+| `is.objectLoose(x)`               | Non-null object, arrays included (lodash's `isObjectLike`) |
+| `is.func(x)`                      | `typeof x === "function"` (classes included) |
 | `is.map(x)`                       | Instance of `Map`                        |
 | `is.date(x)`                      | Instance of `Date`                       |
 | `is.error(x)`                     | Instance of `Error`                      |
@@ -200,6 +246,7 @@ nanotypes is hardened for modern environments:
 - Defensive `instanceof` handling
 - Works consistently across Node, browsers, workers, and edge runtimes
 - Guards never throw, they return `false` (revoked proxies and throwing proxy traps included)
+- A guard's `true` is a verified claim: if it cannot verify part of its definition, it returns `false` (see [What `false` means](#what-false-means))
 - Guards don't run the value's code: no getters, `Symbol.toPrimitive`, or `toString` (exceptions: `isObjectStrict` reads `Symbol.toStringTag`, and `isContentEditable` reads `isContentEditable` on an `HTMLElement`)
 - Assertions throw clean `TypeError` messages with readable descriptions
 
@@ -230,7 +277,13 @@ import { is, assertType } from 'nanotypes/auto';
 
 ### Design principles
 
+The full rules, with the reasoning, an audit of every guard, and proposals under discussion: [docs/DESIGN.md](https://github.com/iWhatty/nanotypes/blob/main/docs/DESIGN.md).
+
+- A guard's `true` is a **verified claim**; `false` means "not verified"
 - Guards **never throw**
+- Guards **never run the value's code** (documented exceptions: `isObjectStrict`, `isContentEditable`)
+- Type predicates match the runtime check
+- Names follow the ecosystem's meaning, or the docs say loudly where they don't (`isNil`, `isObject`)
 - Asserts **throw intentionally** (`TypeError`)
 - No runtime assumptions
 - Safe reflection on `globalThis`
