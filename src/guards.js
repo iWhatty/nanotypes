@@ -121,8 +121,8 @@ export const isNullish = (x) => x === undefined || x === null;
 export const isNull = (x) => x === null;
 
 /**
- * Strictly `null`, same as `isNull`. Not lodash's `isNil` (null or
- * undefined): use `isNullish` for that.
+ * @deprecated Use `isNull` (same function), or `isNullish` for lodash's
+ * `isNil` (null or undefined). Strictly `null`. Kept as an alias.
  */
 export const isNil = isNull;
 

@@ -732,6 +732,13 @@ per guard if a user hits a cross-realm case.
   unchanged: `@deprecated` JSDoc on `isNil`, `assertNil`, `is.nil`,
   `assertType.nil`, pointing at `isNull` (and `isNullish` for the lodash
   meaning), in 0.4.0. Never reuse the name with the lodash meaning.
+  **Status: done in 0.4.0.** `@deprecated` JSDoc on `isNil`, `assertNil`,
+  `is.nil` and `assertType.nil` in `index.d.ts` (and on the sources),
+  pointing at `isNull` and `isNullish`; runtime unchanged (`isNil` is still
+  `isNull`, `assertNil` keeps "Expected nil"). `test/types/deprecations.mjs`
+  runs the TypeScript language service and checks that each deprecated form
+  gets the "is deprecated" suggestion (what editors strike through) and the
+  replacements do not, on TypeScript 5.0.4, 5.4.5 and 6.0.3.
 - **`isNumberSafe`** reads like `Number.isSafeInteger`; it is "a number
   that is not `NaN`" (Infinity included). Its JSDoc says so since 0.3.1.
   An unambiguous alias is possible but not recommended unless users report

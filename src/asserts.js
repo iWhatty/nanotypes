@@ -163,8 +163,8 @@ export function assertNull(x) {
 }
 
 /**
- * Throws unless `x` is strictly `null`, same check as `assertNull` (message
- * kept as "Expected nil"). Not lodash's `isNil`: use `assertNullish`.
+ * @deprecated Use `assertNull` (same check), or `assertNullish` for lodash's
+ * `isNil`. Throws unless `x` is strictly `null` (message "Expected nil").
  * @param {unknown} x
  */
 export function assertNil(x) {

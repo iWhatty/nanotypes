@@ -92,7 +92,7 @@ Both shapes are kept in lockstep. Every guard `isFoo` named export has a matchin
 | neither `null` nor `undefined` | `isNonNullish` / `isDefined` | `x != null` |
 | strictly `undefined` | `isUndefined` | `x === undefined` |
 
-`isNil` is strictly `null` here, **not** lodash's `isNil`. Prefer `isNull` or `isNullish`, which can't be misread. `isDefined` rejects `null` too; in remeda and ts-extras `isDefined` means only `!== undefined`. `isNonNullish` (0.4.0, remeda's name) is the same function and can't be misread; `isDefined` keeps its meaning.
+`isNil` is strictly `null` here, **not** lodash's `isNil`, and is deprecated since 0.4.0 (it stays as an alias of `isNull`; editors show it struck through). Use `isNull` or `isNullish`, which can't be misread. `isDefined` rejects `null` too; in remeda and ts-extras `isDefined` means only `!== undefined`. `isNonNullish` (0.4.0, remeda's name) is the same function and can't be misread; `isDefined` keeps its meaning.
 
 ### Coming from lodash
 
@@ -141,7 +141,7 @@ Guards are generated dynamically from available runtime constructors. Some guard
 | `is.defined(x)` / `is.nonNullish(x)` | Not `null` or `undefined`             |
 | `is.nullish(x)`                   | `null` or `undefined`                    |
 | `is.null(x)`                      | Strictly `null`                          |
-| `is.nil(x)`                       | Strictly `null` (not lodash's `isNil`)   |
+| `is.nil(x)`                       | Deprecated: strictly `null` (not lodash's `isNil`); use `is.null` |
 | `is.array(x)` / `is.arr(x)`       | `Array.isArray` (any realm); `false` for a revoked proxy |
 | `is.object(x)` / `is.obj(x)`      | Non-null object, not array, not function (not lodash's `isObject`) |
 | `is.objectStrict(x)`              | `Object.prototype.toString` gives `[object Object]` (object literals, null-prototype objects, class instances; not if `Symbol.toStringTag` is set) |
@@ -173,14 +173,14 @@ Guards are generated dynamically from available runtime constructors. Some guard
 | Named export | Namespace       | True for                     | Same as      |
 | ------------ | --------------- | ---------------------------- | ------------ |
 | `isNull`     | `is.null`       | `null` only                  | `x === null` |
-| `isNil`      | `is.nil`        | `null` only (alias of `isNull`; differs from lodash) | `x === null` |
+| `isNil` (deprecated) | `is.nil`  | `null` only (alias of `isNull`; differs from lodash) | `x === null` |
 | `isNullish`  | `is.nullish`    | `null` or `undefined`        | `x == null`  |
 | `isDefined`  | `is.defined`    | neither `null` nor `undefined` | `x != null` |
 | `isNonNullish` | `is.nonNullish` | neither (same function as `isDefined`; remeda's name) | `x != null` |
 
-Each has an assert: `assertNull` / `assertType.null`, `assertNil` / `assertType.nil`, `assertNullish` / `assertType.nullish`, `assertDefined` / `assertType.defined`, `assertNonNullish` / `assertType.nonNullish`.
+Each has an assert: `assertNull` / `assertType.null`, `assertNil` / `assertType.nil` (deprecated), `assertNullish` / `assertType.nullish`, `assertDefined` / `assertType.defined`, `assertNonNullish` / `assertType.nonNullish`.
 
-> **Coming from lodash or Ramda?** Their `isNil(x)` is true for `null` **or** `undefined`. In nanotypes that is `isNullish(x)`. nanotypes' `isNil(undefined)` is `false`. Prefer `isNull` when you mean strictly `null`, so readers don't have to remember the difference.
+> **Coming from lodash or Ramda?** Their `isNil(x)` is true for `null` **or** `undefined`. In nanotypes that is `isNullish(x)`. nanotypes' `isNil(undefined)` is `false`, which is why `isNil` is deprecated (0.4.0): use `isNull` when you mean strictly `null`, so readers don't have to remember the difference.
 
 ### Assertive guards
 

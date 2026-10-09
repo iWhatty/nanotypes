@@ -85,8 +85,10 @@ export function isNullish(x: unknown): x is null | undefined;
 /** True only when `x` is `null` (`x === null`); `undefined` is false. */
 export function isNull(x: unknown): x is null;
 /**
- * True only when `x` is `null` (`x === null`); `undefined` is false. Same as
- * `isNull`. Not lodash's `isNil` (null or undefined): use `isNullish` for that.
+ * @deprecated Use `isNull` (same function), or `isNullish` if you meant
+ * lodash's `isNil` (null or undefined). True only when `x` is `null`
+ * (`x === null`); `undefined` is false, unlike lodash, Ramda and es-toolkit.
+ * Kept as an alias; the name will never take the lodash meaning.
  */
 export function isNil(x: unknown): x is null;
 /**
@@ -233,8 +235,9 @@ export function assertNullish(x: unknown): asserts x is null | undefined;
 /** Throws `TypeError` unless `x` is `null`; `undefined` throws. */
 export function assertNull(x: unknown): asserts x is null;
 /**
- * Throws `TypeError` unless `x` is `null`; `undefined` throws. Same check as
- * `assertNull`. Not lodash's `isNil`: use `assertNullish` for null or undefined.
+ * @deprecated Use `assertNull` (same check), or `assertNullish` for lodash's
+ * `isNil` meaning (null or undefined). Throws `TypeError` unless `x` is
+ * `null`; `undefined` throws. Message "Expected nil".
  */
 export function assertNil(x: unknown): asserts x is null;
 export function assertObject(x: unknown): asserts x is object;
@@ -345,7 +348,10 @@ export interface IsNamespace {
   nullish(x: unknown): x is null | undefined;
   /** Strictly `null` (`x === null`); `undefined` is false. */
   null(x: unknown): x is null;
-  /** Strictly `null`, same as `is.null`. Not lodash's `isNil`: use `is.nullish`. */
+  /**
+   * @deprecated Use `is.null` (same function), or `is.nullish` for lodash's
+   * `isNil` meaning. Strictly `null`; `undefined` is false.
+   */
   nil(x: unknown): x is null;
   contentEditable(x: unknown): x is HTMLElement;
 
@@ -418,7 +424,10 @@ export interface AssertTypeNamespace {
   nullish(x: unknown): asserts x is null | undefined;
   /** Throws unless `x` is strictly `null`; `undefined` throws. */
   null(x: unknown): asserts x is null;
-  /** Strictly `null`, same as `assertType.null`. Not lodash's `isNil`: use `assertType.nullish`. */
+  /**
+   * @deprecated Use `assertType.null` (same check), or `assertType.nullish`
+   * for lodash's `isNil` meaning. Strictly `null`; `undefined` throws.
+   */
   nil(x: unknown): asserts x is null;
   contentEditable(x: unknown): asserts x is HTMLElement;
 
