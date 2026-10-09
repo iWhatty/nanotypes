@@ -11,8 +11,14 @@
 //   time, so they return `false` instead of throwing in environments where
 //   the constructor is missing (e.g. isHtmlElement in Node).
 //
-// Guarantees, for every guard in this file:
-// - Never throws. Revoked proxies and throwing proxy traps return `false`.
+// Guarantees, for every guard in this file (docs/DESIGN.md, section 2):
+// - `true` is a verified claim: a guard returns `true` only when it has
+//   verified every part of its definition. A part it cannot verify (such as
+//   "not an array" for a revoked proxy) makes it return `false`. So `false`
+//   means "not verified", not "verified the opposite".
+// - Never throws. Revoked proxies and throwing proxy traps return `false`
+//   unless the guard's whole claim is verifiable without them (a revoked
+//   proxy is still `typeof` "object", so `isObjectLoose` is `true`).
 // - Returns a strict boolean.
 // - Never reads a property of the value, so no getter, `Symbol.toStringTag`,
 //   `Symbol.toPrimitive`, or `toString` on the value runs. Only the
@@ -114,9 +120,21 @@ export const isNull = (x) => x === null;
  */
 export const isNil = isNull;
 
-// Basic object check: excludes null and arrays. Matches most non-null
-// object-like values (including class instances, DOM nodes, etc.)
-export const isObject = (x) => typeof x === 'object' && x !== null && !isArray(x);
+// A non-null `typeof "object"` value that is verifiably not an array:
+// object literals, null-prototype objects, class instances, boxed
+// primitives, Date, Map, DOM nodes. Not arrays, not functions (lodash's
+// `isObject` includes both; see docs/DESIGN.md). A revoked proxy is `false`:
+// `Array.isArray` throws on it, so "not an array" cannot be verified
+// (0.3.0 returned `true`). Its own try/catch rather than `!isArray(x)`,
+// because `isArray`'s `false` also means "could not tell".
+export const isObject = (x) => {
+    if (typeof x !== 'object' || x === null) return false;
+    try {
+        return !Array.isArray(x);
+    } catch {
+        return false;
+    }
+};
 export const isObj = isObject;
 
 // `Object.prototype.toString` gives "[object Object]": true for object
@@ -151,7 +169,9 @@ export const isPlainObject = (x) => {
 };
 export const isPojo = isPlainObject;
 
-// Loose object check: includes arrays, objects, and non-null values.
+// Loose object check: any non-null `typeof "object"` value, arrays
+// included, functions excluded (lodash's `isObjectLike`). `typeof` works on
+// a revoked proxy, so a revoked proxy is `true`.
 export const isObjectLoose = (x) => typeof x === 'object' && x !== null;
 
 // Browser-only: HTMLElement whose `isContentEditable` is true.

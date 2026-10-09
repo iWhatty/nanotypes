@@ -370,7 +370,9 @@ export function runGuardSafety(label, mod, auto) {
   class Foo {}
   for (const [l, x, want] of [
     ['new Foo()', new Foo(), 'Foo'],
-    ['Object.create(Object.create(Map.prototype))', Object.create(Object.create(Map.prototype)), 'Map'],
+    ['Object.create(Map.prototype)', Object.create(Map.prototype), 'Map'],
+    // Only the nearest prototype's own constructor counts (0.3.0 said Map).
+    ['Object.create(Object.create(Map.prototype))', Object.create(Object.create(Map.prototype)), 'Object'],
     ['vm new Map()', runInNewContext('new Map()'), 'Map'],
     ['{}', {}, 'Object'],
     ['revoked proxy', corpus[0][1], 'object'],

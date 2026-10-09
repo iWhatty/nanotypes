@@ -34,8 +34,10 @@ function isAuto(value, Type) {
     }
     try {
         const result = value instanceof Type;
+        // No property of the value is read (0.3.0 read value.constructor.name,
+        // which ran a getter); the console shows the value itself.
         if (!result && DEV) {
-            console.warn(`Expected ${Type.name}, got ${value?.constructor?.name || typeof value}`, value);
+            console.warn(`Expected ${Type.name}, got ${value === null ? 'null' : typeof value}`, value);
         }
         return result;
     } catch (err) {
