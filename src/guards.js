@@ -147,8 +147,8 @@ export const isObj = isObject;
 // literals, null-prototype objects, and class instances without a
 // `Symbol.toStringTag`; false for arrays, Date, Map, DOM elements, and any
 // object whose `Symbol.toStringTag` is set. It reads `Symbol.toStringTag`
-// (a getter there runs); a throw returns false. Use isPlainObject for a
-// prototype-only check.
+// (a getter there runs); a throw returns false.
+/** @deprecated Use `isPlainObject` (0.4.0, docs/DESIGN.md P2). Kept, unchanged. */
 export const isObjectStrict = (x) => {
     try {
         return Object.prototype.toString.call(x) === '[object Object]';

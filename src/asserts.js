@@ -177,7 +177,10 @@ export function assertObject(x) {
 }
 export const assertObj = assertObject;
 
-/** @param {unknown} x */
+/**
+ * @deprecated Use `assertPlainObject` (0.4.0). Kept, unchanged.
+ * @param {unknown} x
+ */
 export function assertObjectStrict(x) {
     if (!isObjectStrict(x)) throw new TypeError(`Expected objectStrict, got ${describe.value(x)}`);
 }

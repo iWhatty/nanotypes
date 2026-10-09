@@ -615,6 +615,21 @@ wanted, a new guard defined by prototype shape (the prototype's prototype
 is `null` and the prototype's own `constructor` data property is named
 `Object`), which needs no getter.
 
+**Status: (c) done in 0.4.0; the cross-realm guard stays a proposal.**
+`isObjectStrict`, `assertObjectStrict`, `is.objectStrict` and
+`assertType.objectStrict` carry `@deprecated` JSDoc pointing at the
+`isPlainObject` forms, with the answers that change on migration (class
+instances and another realm's `{}`: true -> false; `Math`, `JSON`,
+`arguments`: false -> true). Behaviour unchanged, so they remain the one
+documented exception to rule 2.3. Checked by `test/types/deprecations.mjs`.
+The cross-realm guard was recommended only "if wanted", and no user has
+asked for it, so it is not added; the README says no guard covers another
+realm's plain object yet. If added later, it needs its own name (not a
+new meaning for `isPlainObject`, rule 2.7), runs two
+`getOwnPropertyDescriptor` traps on a proxy, and must decide what a
+null-prototype object from another realm is (indistinguishable from this
+realm's).
+
 ### P3. `isContentEditable` reads a getter on the value
 
 It reads `x.isContentEditable`, so an own property, a subclass getter, or

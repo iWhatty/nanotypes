@@ -77,7 +77,7 @@ Both shapes are kept in lockstep. Every guard `isFoo` named export has a matchin
 | any non-null object, arrays included (lodash's `isObjectLike`) | `isObjectLike` / `isObjectLoose` | `{}`, `[]`, class instances, `Map`, `Date`, boxed primitives | functions, `null`, primitives |
 | a non-null object that is not an array | `isObject` / `isObj` | `{}`, class instances, `Map`, `Date`, `Math`, boxed primitives | arrays, functions, `null`, primitives, revoked proxies |
 | a plain object: a literal, `Object.create(null)`, parsed JSON | `isPlainObject` / `isPojo` | `{}`, `Object.create(null)`, `Math`, `JSON` | class instances, `Map`, `Date`, arrays, another realm's `{}` |
-| an object whose `toString` tag is `Object`, from any realm | `isObjectStrict` | `{}`, class instances, another realm's `{}` | `Map`, `Date`, `Math`, arrays, anything with a `Symbol.toStringTag` (it reads the tag, so a tag getter runs) |
+| an object whose `toString` tag is `Object`, from any realm | `isObjectStrict` (deprecated, 0.4.0: use `isPlainObject`) | `{}`, class instances, another realm's `{}` | `Map`, `Date`, `Math`, arrays, anything with a `Symbol.toStringTag` (it reads the tag, so a tag getter runs) |
 | an array, from any realm | `isArray` / `isArr` | arrays, proxies of arrays | revoked proxies |
 | a function or class | `isFunc` | functions, classes | everything else |
 
@@ -144,7 +144,7 @@ Guards are generated dynamically from available runtime constructors. Some guard
 | `is.nil(x)`                       | Deprecated: strictly `null` (not lodash's `isNil`); use `is.null` |
 | `is.array(x)` / `is.arr(x)`       | `Array.isArray` (any realm); `false` for a revoked proxy |
 | `is.object(x)` / `is.obj(x)`      | Non-null object, not array, not function (not lodash's `isObject`) |
-| `is.objectStrict(x)`              | `Object.prototype.toString` gives `[object Object]` (object literals, null-prototype objects, class instances; not if `Symbol.toStringTag` is set) |
+| `is.objectStrict(x)`              | Deprecated (use `is.plainObject`): `Object.prototype.toString` gives `[object Object]` (object literals, null-prototype objects, class instances; not if `Symbol.toStringTag` is set) |
 | `is.plainObject(x)`               | Prototype is `Object.prototype` or `null` (see below) |
 | `is.objectLoose(x)` / `is.objectLike(x)` | Non-null object, arrays included (lodash's `isObjectLike`) |
 | `is.func(x)`                      | `typeof x === "function"` (classes included) |
@@ -166,7 +166,7 @@ Guards are generated dynamically from available runtime constructors. Some guard
 
 > **`isFiniteNumber`, not `isFinite`.** The named export `isFinite` is deprecated: importing it shadows the global `isFinite`, which coerces (`isFinite("1") === true`), while nanotypes' never does (`isFiniteNumber("1") === false`). `isFinite` and `assertFinite` stay as aliases of `isFiniteNumber` and `assertFiniteNumber`.
 
-> **`isPlainObject` / `isPojo`** decides by `Object.getPrototypeOf(x)` alone: true when `x` is a non-null, non-function object whose prototype is this realm's `Object.prototype`, or `null`. It reads no property of `x`, so `Symbol.toStringTag` is ignored (`{ [Symbol.toStringTag]: "X" }` is plain) and no getter runs. Arrays, class instances, `Object.create(proto)`, and objects from another realm (iframe, `vm`) are not plain. A proxy is judged by its `getPrototypeOf` trap; a revoked proxy or a throwing trap gives `false`. Use `isObjectStrict` when you want the `toString`-tag check instead.
+> **`isPlainObject` / `isPojo`** decides by `Object.getPrototypeOf(x)` alone: true when `x` is a non-null, non-function object whose prototype is this realm's `Object.prototype`, or `null`. It reads no property of `x`, so `Symbol.toStringTag` is ignored (`{ [Symbol.toStringTag]: "X" }` is plain) and no getter runs. Arrays, class instances, `Object.create(proto)`, and objects from another realm (iframe, `vm`) are not plain. A proxy is judged by its `getPrototypeOf` trap; a revoked proxy or a throwing trap gives `false`. `isObjectStrict` (the `toString`-tag check) is deprecated since 0.4.0 in favour of `isPlainObject`: it runs the value's `Symbol.toStringTag` getter. Moving from `isObjectStrict` to `isPlainObject` changes the answer for class instances and another realm's `{}` (now `false`) and for `Math`, `JSON` and `arguments` (now `true`). No guard checks for a plain object from another realm yet ([docs/DESIGN.md](https://github.com/iWhatty/nanotypes/blob/main/docs/DESIGN.md), P2).
 
 ### Null checks
 

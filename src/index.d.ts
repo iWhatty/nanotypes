@@ -103,9 +103,14 @@ export function isObject(x: unknown): x is object;
 /** Same function as `isObject` (not lodash's `isObject`). */
 export function isObj(x: unknown): x is object;
 /**
- * `Object.prototype.toString.call(x) === '[object Object]'`: object literals,
- * null-prototype objects, and class instances without a `Symbol.toStringTag`.
- * Reads `Symbol.toStringTag` (a getter runs); never throws.
+ * @deprecated Use `isPlainObject`, which decides by prototype and runs none
+ * of the value's code. This one reads `Symbol.toStringTag` (a getter or a
+ * proxy `get` trap runs), so its answer is whatever that code returns.
+ * Migrating changes answers for: class instances and another realm's `{}`
+ * (true here, false for `isPlainObject`); `Math`, `JSON`, `arguments` and
+ * other tagged objects with a plain prototype (false here, true there).
+ * Kept, unchanged: `Object.prototype.toString.call(x) === '[object Object]'`;
+ * never throws.
  */
 export function isObjectStrict(x: unknown): x is Record<string, unknown>;
 /**
@@ -242,6 +247,10 @@ export function assertNull(x: unknown): asserts x is null;
 export function assertNil(x: unknown): asserts x is null;
 export function assertObject(x: unknown): asserts x is object;
 export function assertObj(x: unknown): asserts x is object;
+/**
+ * @deprecated Use `assertPlainObject` (see `isObjectStrict` for how the
+ * answers differ). Kept, unchanged; message "Expected objectStrict".
+ */
 export function assertObjectStrict(x: unknown): asserts x is Record<string, unknown>;
 export function assertPlainObject(x: unknown): asserts x is Record<string, unknown>;
 export function assertPojo(x: unknown): asserts x is Record<string, unknown>;
@@ -364,6 +373,10 @@ export interface IsNamespace {
    * "not an array" cannot be verified (0.3.1). Never throws, reads no property.
    */
   object(x: unknown): x is object;
+  /**
+   * @deprecated Use `is.plainObject`, which runs none of the value's code (see
+   * `isObjectStrict` for how the answers differ). Reads `Symbol.toStringTag`.
+   */
   objectStrict(x: unknown): x is Record<string, unknown>;
   plainObject(x: unknown): x is Record<string, unknown>;
   pojo(x: unknown): x is Record<string, unknown>;
@@ -431,6 +444,7 @@ export interface AssertTypeNamespace {
   nil(x: unknown): asserts x is null;
   contentEditable(x: unknown): asserts x is HTMLElement;
 
+  /** @deprecated Use `assertType.plainObject` (see `isObjectStrict`). */
   objectStrict(x: unknown): asserts x is Record<string, unknown>;
   plainObject(x: unknown): asserts x is Record<string, unknown>;
   pojo(x: unknown): asserts x is Record<string, unknown>;

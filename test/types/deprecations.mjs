@@ -23,6 +23,9 @@ const DEPRECATED = [
   'isFinite', 'assertFinite',
   // 0.4.0 (docs/DESIGN.md P8): strictly null here, null-or-undefined in lodash.
   'isNil', 'assertNil', 'is.nil', 'assertType.nil',
+  // 0.4.0 (docs/DESIGN.md P2): runs the value's Symbol.toStringTag getter;
+  // isPlainObject is the replacement.
+  'isObjectStrict', 'assertObjectStrict', 'is.objectStrict', 'assertType.objectStrict',
 ];
 // Must not be deprecated (the replacements, and neighbours of the above).
 const CURRENT = [
