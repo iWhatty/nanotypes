@@ -29,6 +29,11 @@ class Widget { size = 1; }
 export const finite = (x: unknown) => (isFiniteNumber(x) ? x : 0);
 export const positiveInteger = (x: unknown) => (isPositiveNumber(x) && isInteger(x) ? x : 1);
 export const safe = (x: unknown) => (isNumberSafe(x) ? x : 0);
+// Input already typed with the base type: the narrowed value carries the brand.
+export const typedFinite = (x: number) => (isFiniteNumber(x) ? x : 0);
+export const typedLabel = (x: string | number) => (isNonEmptyString(x) ? x : 'none');
+export const typedEditable = (x: HTMLElement | null) => (isContentEditable(x) ? x : null);
+export const typedBoth = (x: number) => (isPositiveNumber(x) && isInteger(x) ? x : 1);
 export const label = (x: unknown) => (isNonEmptyString(x) ? x : 'none');
 export const truthyText = (x: string | null) => (isTruthy(x) ? x : '');
 export const truthyCount = (x: number | undefined) => (isTruthy(x) ? x : 1);

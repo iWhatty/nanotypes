@@ -235,7 +235,7 @@ assertType.numberSafe(x);
 
 This means IDEs narrow types correctly, fewer `as` casts, fewer `@ts-ignore` comments, safer boundary validation.
 
-**Refinement guards narrow to branded types (0.4.0).** A type predicate works in both directions: `false` removes the type from the value. `isPositiveNumber` checks more than "is a number", so with a plain `x is number`, `if (!isPositiveNumber(n))` typed `n: number` as `never`, though `-1` lands there. These guards now narrow to a branded type, which is still a `number` (or `string`, or `HTMLElement`) in the true branch and leaves the input type intact in the else branch:
+**Refinement guards narrow to branded types (0.4.0).** A type predicate works in both directions: `false` removes the type from the value. `isPositiveNumber` checks more than "is a number", so with a plain `x is number`, `if (!isPositiveNumber(n))` typed `n: number` as `never`, though `-1` lands there. These guards now narrow to a branded type, which is still a `number` (or `string`, or `HTMLElement`) in the true branch and leaves the input type intact in the else branch. The brand is applied only where the else branch needs it: an input already typed `number` / `string` / `HTMLElement` (or a union holding one) is branded, while `unknown` and `any` input (untyped JavaScript) narrows to the plain type, so `let j = i; j += 1` keeps working after the check:
 
 | Guard | Narrows to | A plain `number` / `string` in the else branch |
 | --- | --- | --- |
@@ -309,7 +309,7 @@ Runtime answers change only for `isContentEditable`; the rest is new names, depr
 - **New names (aliases, same functions):** `isObjectLike` (= `isObjectLoose`), `isFunction` (= `isFunc`), `isNonNullish` (= `isDefined`), with their asserts and namespace forms.
 - **Deprecated (still work):** `isNil` -> `isNull` (or `isNullish` for lodash's meaning); `isObjectStrict` -> `isPlainObject` (answers differ for class instances, other realms' objects, and `Math` / `JSON`).
 - **`isContentEditable`** asks the platform's `HTMLElement.prototype` getter. Test fakes that set `isContentEditable` as an own property now get `false`: put a getter on the fake's prototype.
-- **Types:** refinement guards narrow to branded types (`FiniteNumber`, `PositiveNumber`, `NonEmptyString`, ...), so the else branch keeps the input type. A variable initialised from a narrowed value is branded too: write `let n: number = value` if you reassign plain numbers to it. The object guards and `isFunc` narrow union members exactly (arrays, functions and classes go where the runtime sends them).
+- **Types:** refinement guards narrow inputs already typed `number` / `string` / `HTMLElement` to branded types (`FiniteNumber`, `PositiveNumber`, `NonEmptyString`, ...), so the else branch keeps the input type. A variable initialised from such a value is branded too: write `let n: number = value` if you reassign plain numbers to it. `unknown` and `any` input narrows to the plain type, so untyped JavaScript is unaffected. The object guards and `isFunc` narrow union members exactly (arrays, functions and classes go where the runtime sends them).
 
 ### Migration from 0.0.x / 0.1.0
 

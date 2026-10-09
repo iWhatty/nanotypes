@@ -23,6 +23,13 @@ type Truthy<T> = Exclude<T, Falsy>;
 // literal unions, while the true branch is still a `number` (assign it,
 // do arithmetic, pass it on). The brand is phantom: no runtime property, and
 // `brand` is exported as a type only.
+// - The brand is applied only where the else branch needs it (`Refined`
+//   below): to input members that already are the base type (`number`,
+//   a number literal, `string`, an `HTMLElement`). `unknown`, `any` and
+//   other members (`{}`, `Element`) narrow to the plain base type, since
+//   their else branch keeps them anyway. So `let i = x; i += 1` keeps
+//   working after `isInteger(x)` on untyped input (dice3D-js dogfooding: a
+//   brand there made `i += columnCount` an error).
 // - The brand must be required: an optional one still sends literal unions
 //   (`1 | -1`) to `never`.
 // - Brands combine by key, so a value that passed several checks has all of
@@ -31,6 +38,18 @@ type Truthy<T> = Exclude<T, Falsy>;
 declare const brand: unique symbol;
 /** A phantom brand recording which nanotypes checks a value passed. No runtime value. */
 type Brand<B extends string> = { readonly [brand]: { readonly [K in B]: true } };
+// What a refinement guard narrows to, per union member of the input T:
+// - a member that is already `Base` (`number`, `1 | -1`, a branded number):
+//   `T & Brand<B>`, so it is not removed from the else branch;
+// - `any`: `Base` (the else branch stays `any`); `unknown` and any other
+//   member that may hold a `Base` (`{}`, `Element` for `HTMLElement`):
+//   `Base`; members that cannot (`string` for `number`): dropped.
+// Distributive, so a bounded type parameter narrows through its constraint;
+// `Extract<Base, T>` keeps every branch assignable to T, as a type predicate
+// requires.
+type Refined<T, Base, B extends string> = T extends Base
+  ? (0 extends 1 & T ? Extract<Base, T> : T & Brand<B>)
+  : Extract<Base, T>;
 /** A number that is not `NaN` (Infinity allowed): what `isNumberSafe` verified. */
 export type NumberSafe = number & Brand<'numberSafe'>;
 /** A number that is not `NaN` or +/-`Infinity`: what `isFiniteNumber` verified. */
@@ -161,10 +180,11 @@ export function isNum(x: unknown): x is number;
 /**
  * A number that is not `NaN` (Infinity is allowed). Not about safe integers:
  * use `Number.isSafeInteger` for that, or `isFiniteNumber` to exclude Infinity.
- * Narrows to the branded `NumberSafe` (still a `number`), so the else branch
- * keeps `number`: `NaN` lands there.
+ * An input typed `number` narrows to the branded `NumberSafe` (still a
+ * `number`), so the else branch keeps `number`: `NaN` lands there.
+ * `unknown` / `any` narrow to plain `number`.
  */
-export function isNumberSafe(x: unknown): x is NumberSafe;
+export function isNumberSafe<T>(x: T): x is Refined<T, number, 'numberSafe'>;
 export function isBoolean(x: unknown): x is boolean;
 export function isBool(x: unknown): x is boolean;
 export function isBigint(x: unknown): x is bigint;
@@ -268,12 +288,15 @@ export function isObjectLike<T>(x: T): x is ObjectLoosePart<T>;
  * trap). False for a proxy, a fake element whose class lacks that getter
  * (jsdom does not implement it), and outside browsers. Never throws.
  */
-export function isContentEditable(x: unknown): x is ContentEditableElement;
+export function isContentEditable<T>(x: T): x is Refined<T, HTMLElement, 'contentEditable'>;
 
 // --- derived ---
-// The refinement guards below narrow to branded types (0.4.0): the true
-// branch is still a `number` / `string` / `HTMLElement`, and the else branch
-// keeps the input type instead of `never`. Asserts keep the plain types.
+// The refinement guards below (0.4.0, `Refined`): an input already typed
+// with the base type (`number`, `string`, `HTMLElement`, or a union holding
+// it) narrows to a branded type, so the else branch keeps that type instead
+// of `never`; the true branch is still a `number` / `string` /
+// `HTMLElement`. `unknown` and `any` narrow to the plain base type. Asserts
+// keep the plain types.
 /**
  * `!!x`. Drops falsy literal types; `string` narrows to `NonEmptyString` and
  * `number` to a branded non-zero number, so `''`, `0` and `NaN` keep their
@@ -287,26 +310,27 @@ export function isTruthy<T>(x: T): x is TruthyPart<T>;
  */
 export function isFalsy(x: unknown): x is Falsy;
 export function isEmptyString(x: unknown): x is '';
-/** A string with at least one character. Narrows to the branded `NonEmptyString`. */
-export function isNonEmptyString(x: unknown): x is NonEmptyString;
-/** A number > 0, not `NaN` (Infinity allowed). Narrows to the branded `PositiveNumber`. */
-export function isPositiveNumber(x: unknown): x is PositiveNumber;
-/** A number < 0, not `NaN` (-Infinity allowed). Narrows to the branded `NegativeNumber`. */
-export function isNegativeNumber(x: unknown): x is NegativeNumber;
-/** `Number.isInteger` (no coercion). Narrows to the branded `Integer`, which is also a `FiniteNumber`. */
-export function isInteger(x: unknown): x is Integer;
+/** A string with at least one character. A `string` input narrows to the branded `NonEmptyString`; `unknown` / `any` to `string`. */
+export function isNonEmptyString<T>(x: T): x is Refined<T, string, 'nonEmpty'>;
+/** A number > 0, not `NaN` (Infinity allowed). A `number` input narrows to the branded `PositiveNumber`; `unknown` / `any` to `number`. */
+export function isPositiveNumber<T>(x: T): x is Refined<T, number, 'numberSafe' | 'positive'>;
+/** A number < 0, not `NaN` (-Infinity allowed). A `number` input narrows to the branded `NegativeNumber`; `unknown` / `any` to `number`. */
+export function isNegativeNumber<T>(x: T): x is Refined<T, number, 'numberSafe' | 'negative'>;
+/** `Number.isInteger` (no coercion). A `number` input narrows to the branded `Integer` (also a `FiniteNumber`); `unknown` / `any` to `number`. */
+export function isInteger<T>(x: T): x is Refined<T, number, 'numberSafe' | 'finite' | 'integer'>;
 /**
  * A number that is not `NaN` or +/-`Infinity` (`Number.isFinite`; no
- * coercion). Narrows to the branded `FiniteNumber`, so `if (!isFiniteNumber(n))`
- * keeps `n: number` (it was `never` before 0.4.0).
+ * coercion). A `number` input narrows to the branded `FiniteNumber`, so
+ * `if (!isFiniteNumber(n))` keeps `n: number` (it was `never` before 0.4.0);
+ * `unknown` / `any` narrow to plain `number`.
  */
-export function isFiniteNumber(x: unknown): x is FiniteNumber;
+export function isFiniteNumber<T>(x: T): x is Refined<T, number, 'numberSafe' | 'finite'>;
 /**
  * @deprecated Use `isFiniteNumber`. Same function: `Number.isFinite`, no
  * coercion. As a named import it shadows the global `isFinite`, which
  * coerces (`isFinite('1')` is true; this returns false).
  */
-export function isFinite(x: unknown): x is FiniteNumber;
+export function isFinite<T>(x: T): x is Refined<T, number, 'numberSafe' | 'finite'>;
 
 // --- instanceof guards (constructor looked up at call time; false when missing; never throw) ---
 export function isMap(x: unknown): x is Map<unknown, unknown>;
@@ -508,7 +532,7 @@ export interface IsNamespace {
    * A number that is not `NaN` (Infinity is allowed). Not about safe integers:
    * use `Number.isSafeInteger` for that, or `isFiniteNumber` to exclude Infinity.
    */
-  numberSafe(x: unknown): x is NumberSafe;
+  numberSafe<T>(x: T): x is Refined<T, number, 'numberSafe'>;
   array<T>(x: T): x is ArrayPart<T>;
   /** Neither `null` nor `undefined` (`x != null`). Not remeda's `isDefined` (`!== undefined`). */
   defined<T>(x: T | null | undefined): x is T;
@@ -523,7 +547,7 @@ export interface IsNamespace {
    * `isNil` meaning. Strictly `null`; `undefined` is false.
    */
   nil(x: unknown): x is null;
-  contentEditable(x: unknown): x is ContentEditableElement;
+  contentEditable<T>(x: T): x is Refined<T, HTMLElement, 'contentEditable'>;
 
   /**
    * A non-null `typeof "object"` value that is verifiably not an array: object
@@ -556,12 +580,12 @@ export interface IsNamespace {
   truthy<T>(x: T): x is TruthyPart<T>;
   falsy(x: unknown): x is Falsy;
   emptyString(x: unknown): x is '';
-  nonEmptyString(x: unknown): x is NonEmptyString;
-  positiveNumber(x: unknown): x is PositiveNumber;
-  negativeNumber(x: unknown): x is NegativeNumber;
-  integer(x: unknown): x is Integer;
-  finite(x: unknown): x is FiniteNumber;
-  finiteNumber(x: unknown): x is FiniteNumber;
+  nonEmptyString<T>(x: T): x is Refined<T, string, 'nonEmpty'>;
+  positiveNumber<T>(x: T): x is Refined<T, number, 'numberSafe' | 'positive'>;
+  negativeNumber<T>(x: T): x is Refined<T, number, 'numberSafe' | 'negative'>;
+  integer<T>(x: T): x is Refined<T, number, 'numberSafe' | 'finite' | 'integer'>;
+  finite<T>(x: T): x is Refined<T, number, 'numberSafe' | 'finite'>;
+  finiteNumber<T>(x: T): x is Refined<T, number, 'numberSafe' | 'finite'>;
 }
 export declare const is: IsNamespace;
 
@@ -649,4 +673,4 @@ export namespace describe {
 // type only (importing it as a value is a compile error, since it does not
 // exist at run time). The helper types stay exported, as they were
 // (implicitly) before 0.4.0, so declaration emit in consumers can name them.
-export type { brand, Brand, Falsy, Truthy, TruthyPart, ArrayPart, FunctionPart, ObjectPart, ObjectLoosePart };
+export type { brand, Brand, Refined, Falsy, Truthy, TruthyPart, ArrayPart, FunctionPart, ObjectPart, ObjectLoosePart };

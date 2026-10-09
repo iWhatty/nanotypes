@@ -729,7 +729,31 @@ branch on TypeScript 5.0, 5.4 and current, and exported brand type names
 `isFalsy` (narrower than the check: `NaN` is typed `0`) has no exact type;
 document it.
 
-**Status: done in 0.4.0 (option (a)).**
+**Status: done in 0.4.0 (option (a)), refined by dogfooding: brand only where
+the else branch needs it.**
+- The refinement (`Refined<T, Base, B>` in `src/index.d.ts`): per union member
+  of the input, a member that already is `Base` (`number`, a number literal,
+  `string`, an `HTMLElement`, or an already branded value) narrows to
+  `T & Brand<B>`, so it stays in the else branch. `any`, `unknown` and other
+  members that may hold a `Base` (`{}`, `Element`) narrow to the plain `Base`,
+  because their else branch keeps them anyway. Members that cannot be the
+  base type are dropped. It is distributive, so a bounded type parameter
+  narrows through its constraint, and `Extract<Base, T>` keeps every branch
+  assignable to `T`, as a type predicate requires.
+- Why: a pre-release of 0.4.0 branded every input. Checked against
+  dice3D-js before publishing, it broke idiomatic JavaScript in
+  `src/ui/choiceControls.js`: an untyped JSDoc parameter (`any`) checked with
+  `isInteger` was copied into `let lastRowIndex` and incremented
+  (`lastRowIndex += columnCount`: number is not assignable to `Integer`). The
+  brand only exists to stop the else branch becoming `never` for input that
+  already has the base type; for `any` / `unknown` the plain type is sound and
+  keeps `let j = i; j += 1` working. This is the common case for plain JS
+  and for code written by agents.
+- Guarded by `test/types/untypedJs.check.js` (checkJs, strict and loose),
+  which reproduces the dice3D-js pattern for `any` and `unknown` input, plus
+  the else-branch tests in `refinements.test.ts`. Passes on TypeScript
+  5.0.4, 5.4.5 and 6.0.3, strict and loose; dice3D-js type-checks cleanly
+  with it.
 - Brand: `declare const brand: unique symbol; type Brand<B extends string> =
   { readonly [brand]: { readonly [K in B]: true } }`. Keys, not a single tag
   value, so brands combine: with one tag property,

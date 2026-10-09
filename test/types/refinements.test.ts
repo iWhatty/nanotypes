@@ -5,6 +5,9 @@
 // branded type, so its else branch keeps the input type instead of `never`
 // (`-1` lands in the else branch of `isPositiveNumber(n)`). Checked against
 // the built dist/index.d.ts, strict and loose, by `npm run test:types`:
+// - the brand only where the else branch needs it: input members that are
+//   already the base type (`number`, literals, `string`, `HTMLElement`);
+//   `unknown` and `any` narrow to the plain base type (dice3D-js regression);
 // - else branches keep `number`, unions, literal unions, `unknown`, `any`;
 // - true branches stay usable as `number` / `string` / `HTMLElement`
 //   (assignment, arithmetic, Math, template literals, computed keys, calls);
@@ -117,60 +120,100 @@ if (isContentEditable(u5)) u5.focus(); else expectType<Equal<typeof u5, HTMLElem
 declare const u6: string | number;
 if (isNonEmptyString(u6)) takesString(u6); else expectType<Equal<typeof u6, string | number>>();
 
-// --- unknown: the true branch is usable as the plain type ---
+// --- the true branch of an input typed with the base type is the brand ---
+declare const b1: number;
+if (isFiniteNumber(b1)) expectType<Equal<typeof b1, FiniteNumber>>();
+declare const b2: number;
+if (isNumberSafe(b2)) expectType<Equal<typeof b2, NumberSafe>>();
+declare const b3: number;
+if (isPositiveNumber(b3)) expectType<Equal<typeof b3, PositiveNumber>>();
+declare const b4: number;
+if (isNegativeNumber(b4)) expectType<Equal<typeof b4, NegativeNumber>>();
+declare const b5: number;
+if (isInteger(b5)) expectType<Equal<typeof b5, Integer>>();
+declare const b6: string;
+if (isNonEmptyString(b6)) expectType<Equal<typeof b6, NonEmptyString>>();
+declare const b7: HTMLElement;
+if (isContentEditable(b7)) expectType<Equal<typeof b7, ContentEditableElement>>();
+declare const b8: number | string;
+if (isFiniteNumber(b8)) expectType<Equal<typeof b8, FiniteNumber>>();
+// Subtypes of the base keep their own type under the brand.
+declare const b9: HTMLDivElement | null;
+if (isContentEditable(b9)) { const d: HTMLDivElement = b9; void d; } else expectType<Equal<typeof b9, HTMLDivElement | null>>();
+
+// --- unknown: narrows to the plain base type (its else branch keeps
+// `unknown` anyway), usable everywhere ---
 declare const k1: unknown;
 if (isFiniteNumber(k1)) {
-  expectType<Equal<typeof k1, FiniteNumber>>();
-  const plain: number = k1;
+  expectType<Equal<typeof k1, number>>();
   const sum = k1 + 1;
   const max = Math.max(k1, 2);
   const text = `${k1}px`;
-  const list: number[] = [k1, 1];
+  const list = [k1, 1];
+  list.push(0);
   const fixed = k1.toFixed(2);
-  void plain; void sum; void max; void text; void list; void fixed;
+  void sum; void max; void text; void fixed;
 }
 declare const k2: unknown;
 if (isNonEmptyString(k2)) {
-  expectType<Equal<typeof k2, NonEmptyString>>();
-  const plain: string = k2;
+  expectType<Equal<typeof k2, string>>();
   const keyed = { [k2]: 1 };
   const upper = k2.toUpperCase();
-  const record: Record<string, number> = {};
-  record[k2] = 1;
-  void plain; void keyed; void upper;
+  void keyed; void upper;
 }
 declare const k3: unknown;
-if (isContentEditable(k3)) {
-  expectType<Equal<typeof k3, ContentEditableElement>>();
-  const plain: HTMLElement = k3;
-  k3.focus();
-  void plain;
-}
+if (isContentEditable(k3)) { expectType<Equal<typeof k3, HTMLElement>>(); k3.focus(); }
 declare const k4: unknown;
-if (isNumberSafe(k4)) expectType<Equal<typeof k4, NumberSafe>>();
+if (isNumberSafe(k4)) expectType<Equal<typeof k4, number>>();
 declare const k5: unknown;
-if (isPositiveNumber(k5)) expectType<Equal<typeof k5, PositiveNumber>>();
+if (isPositiveNumber(k5)) expectType<Equal<typeof k5, number>>();
 declare const k6: unknown;
-if (isNegativeNumber(k6)) expectType<Equal<typeof k6, NegativeNumber>>();
+if (isNegativeNumber(k6)) expectType<Equal<typeof k6, number>>();
 declare const k7: unknown;
-if (isInteger(k7)) expectType<Equal<typeof k7, Integer>>();
+if (isInteger(k7)) expectType<Equal<typeof k7, number>>();
+declare const k9: unknown;
+if (is.integer(k9)) expectType<Equal<typeof k9, number>>();
 // isTruthy on unknown narrows nothing, as before.
 declare const k8: unknown;
 if (isTruthy(k8)) expectType<Equal<typeof k8, unknown>>();
+// Members that may hold the base type narrow to it; others are dropped.
+declare const m1: {} | null;
+if (isFiniteNumber(m1)) expectType<Equal<typeof m1, number>>();
+declare const m2: Element | null;
+if (isContentEditable(m2)) expectType<Equal<typeof m2, HTMLElement>>(); else expectType<Equal<typeof m2, IfStrict<Element | null, Element>>>();
+declare const m3: string | boolean;
+if (isInteger(m3)) expectType<Equal<typeof m3, never>>(); else expectType<Equal<typeof m3, string | boolean>>();
 
-// --- any (untyped JS): the true branch is the brand, the else stays any ---
+// --- any (untyped JS): the plain base type; the else branch stays any ---
 declare const a1: any;
-if (isFiniteNumber(a1)) takesNumber(a1); else expectType<Equal<typeof a1, any>>();
+if (isFiniteNumber(a1)) expectType<Equal<typeof a1, number>>(); else expectType<Equal<typeof a1, any>>();
 declare const a2: any;
-if (isNonEmptyString(a2)) takesString(a2); else expectType<Equal<typeof a2, any>>();
+if (isNonEmptyString(a2)) expectType<Equal<typeof a2, string>>(); else expectType<Equal<typeof a2, any>>();
 declare const a3: any;
-if (isPositiveNumber(a3)) takesNumber(a3); else expectType<Equal<typeof a3, any>>();
+if (isPositiveNumber(a3)) expectType<Equal<typeof a3, number>>(); else expectType<Equal<typeof a3, any>>();
+declare const a5: any;
+if (isContentEditable(a5)) expectType<Equal<typeof a5, HTMLElement>>(); else expectType<Equal<typeof a5, any>>();
 // isTruthy keeps `any` in its true branch, as before.
 declare const a4: any;
 if (isTruthy(a4)) expectType<Equal<typeof a4, any>>();
 
+// --- regression (dice3D-js, 0.4.0 pre-release): a variable initialised from
+// a value narrowed on `any` or `unknown` input takes plain numbers ---
+export function resolveNextChoiceIndexAny(currentIndex: any, columnCount: number, choiceCount: number): number {
+  if (!isInteger(currentIndex) || currentIndex < 0 || currentIndex >= choiceCount) return -1;
+  let lastRowIndex = currentIndex;
+  while (lastRowIndex + columnCount < choiceCount) lastRowIndex += columnCount;
+  return lastRowIndex;
+}
+export function resolveNextChoiceIndexUnknown(currentIndex: unknown, columnCount: number, choiceCount: number): number {
+  if (!isInteger(currentIndex) || currentIndex < 0 || currentIndex >= choiceCount) return -1;
+  let lastRowIndex = currentIndex;
+  while (lastRowIndex + columnCount < choiceCount) lastRowIndex += columnCount;
+  return lastRowIndex;
+}
+
 // --- brands relate as the checks do ---
-declare const both: unknown;
+declare const both: number;
 if (isPositiveNumber(both) && isInteger(both)) {
   const p: PositiveNumber = both;
   const i: Integer = both;
@@ -225,9 +268,9 @@ function freeTruthy<T>(x: T): T | null {
 }
 void boundedTruthy; void boundedFinite; void boundedLabel; void freeTruthy;
 
-// --- the documented cost: a variable initialised from a narrowed value is
-// branded, so reassigning a plain number needs an annotation ---
-declare const w1: unknown;
+// --- the remaining, documented cost: only for input already typed `number`,
+// a variable initialised from the narrowed value is branded ---
+declare const w1: number;
 if (isFiniteNumber(w1)) {
   let inferred = w1;
   // @ts-expect-error inferred is a FiniteNumber; 0 is a plain number

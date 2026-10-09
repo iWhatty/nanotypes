@@ -6,7 +6,9 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "lib": ["es2022", "dom"],
-    "skipLibCheck": false
+    "skipLibCheck": false,
+    "allowJs": true,
+    "checkJs": true
   },
-  "files": ["isArray.test.ts", "nullChecks.test.ts", "finiteNumber.test.ts", "aliases.test.ts", "functions.test.ts", "refinements.test.ts", "objects.test.ts"]
+  "files": ["isArray.test.ts", "nullChecks.test.ts", "finiteNumber.test.ts", "aliases.test.ts", "functions.test.ts", "refinements.test.ts", "objects.test.ts", "untypedJs.check.js"]
 }
