@@ -73,6 +73,16 @@ else expectType<Equal<typeof a, any>>();
 declare const someObject: object;
 if (isFunc(someObject)) someObject();
 
+// --- type parameters: a bounded one narrows through its constraint ---
+type Callback = (n: number) => void;
+function boundedFn<T extends Callback | string>(x: T): Callback | null {
+  return isFunc(x) ? x : null;
+}
+function freeFn<T>(x: T): void {
+  if (isFunction(x)) x();
+}
+void boundedFn; void freeFn;
+
 // --- asserts ---
 declare const assertedCtor: typeof Widget | string;
 assertFunction(assertedCtor);

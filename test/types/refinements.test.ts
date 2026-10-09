@@ -210,6 +210,21 @@ if (isTruthy(t6)) { const k: FiniteNumber | 'x' = t6; void k; } else expectType<
 declare const t7: bigint;
 if (isTruthy(t7)) { const k: bigint = t7; void k; } else expectType<Equal<typeof t7, bigint>>();
 
+// --- type parameters: a bounded one narrows through its constraint ---
+function boundedTruthy<T extends string | null>(x: T): string {
+  return isTruthy(x) ? x : 'empty';
+}
+function boundedFinite<T extends number | string>(x: T): number {
+  return isFiniteNumber(x) ? x : 0;
+}
+function boundedLabel<T extends string | number>(x: T): string {
+  return isNonEmptyString(x) ? x : 'none';
+}
+function freeTruthy<T>(x: T): T | null {
+  return isTruthy(x) ? x : null;
+}
+void boundedTruthy; void boundedFinite; void boundedLabel; void freeTruthy;
+
 // --- the documented cost: a variable initialised from a narrowed value is
 // branded, so reassigning a plain number needs an annotation ---
 declare const w1: unknown;
