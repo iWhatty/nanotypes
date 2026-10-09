@@ -21,7 +21,8 @@
 //    whose DEV mismatch warning used to read `x.constructor.name`.
 // 3. isPlainObject is decided by Object.getPrototypeOf alone.
 // 4. isFiniteNumber is Number.isFinite; isFinite is the same function.
-// 5. Instanceof guards look the constructor up at call time.
+// 5. Instanceof guards look the constructor up at call time;
+//    isContentEditable asks HTMLElement.prototype's getter, not the value.
 // 6. Asserts throw their own TypeError on hostile values (describe.value
 //    never throws, and never runs a `constructor` getter).
 
@@ -358,20 +359,70 @@ export function runGuardSafety(label, mod, auto) {
   // (jsdom, polyfills) is seen, and removing it returns false again.
   const hadHtmlElement = Object.prototype.hasOwnProperty.call(globalThis, 'HTMLElement');
   if (!hadHtmlElement) {
-    class HTMLElement {}
-    const el = new HTMLElement();
+    // A fake shaped like the platform: `isContentEditable` is a getter on
+    // HTMLElement.prototype that brand-checks its receiver (a private field
+    // throws on anything else, like the DOM's "Illegal invocation").
+    class HTMLElement {
+      #editable;
+      constructor(editable = false) { this.#editable = editable; }
+      get isContentEditable() { return this.#editable; }
+    }
+    const el = new HTMLElement(true);
     if (mod.isHtmlElement(el) !== false) fail('isHtmlElement before install should be false');
+    if (mod.isContentEditable(el) !== false) fail('isContentEditable before install should be false');
     globalThis.HTMLElement = HTMLElement;
     try {
       if (mod.isHtmlElement(el) !== true) fail('isHtmlElement does not see a global installed after import');
-      el.isContentEditable = true;
-      if (mod.isContentEditable(el) !== true) fail('isContentEditable(editable element) should be true');
-      Object.defineProperty(el, 'isContentEditable', { get: boom });
-      if (mod.isContentEditable(el) !== false) fail('isContentEditable with a throwing getter should be false');
+      // 5b. isContentEditable asks the platform getter on
+      // HTMLElement.prototype (0.4.0, docs/DESIGN.md P3): nothing the value
+      // defines runs or answers.
+      const forms = [['isContentEditable', mod.isContentEditable], ['is.contentEditable', mod.is.contentEditable], ['auto is.contentEditable', auto.is.contentEditable]];
+      const editable = (got, want, l) => {
+        for (const [name, fn] of forms) if (fn(got) !== want) fail(`${name}(${l}) should be ${want}`);
+      };
+      editable(el, true, 'editable element');
+      editable(new HTMLElement(false), false, 'non-editable element');
+      // An own property shadowing the getter does not answer.
+      editable(Object.defineProperty(new HTMLElement(false), 'isContentEditable', { value: true }), false, 'own isContentEditable = true on a non-editable element');
+      // An own getter on the value is not run.
+      let ownGetterRan = false;
+      const shadowed = Object.defineProperty(new HTMLElement(true), 'isContentEditable', { get: () => { ownGetterRan = true; return false; } });
+      editable(shadowed, true, 'editable element with an own getter');
+      if (ownGetterRan) fail('isContentEditable ran a getter defined on the value');
+      editable(Object.defineProperty(new HTMLElement(true), 'isContentEditable', { get: boom }), true, 'editable element with a throwing own getter');
+      // A subclass getter does not answer either.
+      class Sub extends HTMLElement { get isContentEditable() { return true; } }
+      editable(new Sub(false), false, 'subclass whose getter says true');
+      // A proxy of an element: no `get` trap runs; the platform getter's
+      // brand check rejects the proxy, so it is false (unverifiable).
+      const reads = [];
+      const spy = new Proxy(new HTMLElement(true), { get(t, k, r) { reads.push(String(k)); return Reflect.get(t, k, r); } });
+      editable(spy, false, 'proxy of an editable element');
+      if (reads.length) fail(`isContentEditable read ${reads.join(', ')} through a proxy get trap`);
+      // An object that only inherits the prototype fails the brand check.
+      editable(Object.create(HTMLElement.prototype), false, 'Object.create(HTMLElement.prototype)');
+      // Every assert form agrees.
+      for (const [name, fn] of [['assertContentEditable', mod.assertContentEditable], ['assertType.contentEditable', mod.assertType.contentEditable]]) {
+        try { fn(el); } catch { fail(`${name}(editable element) threw`); }
+        try { fn(new HTMLElement(false)); fail(`${name}(non-editable element) did not throw`); } catch (e) {
+          if (!(e instanceof TypeError)) fail(`${name}(non-editable element) threw a foreign error`);
+        }
+      }
     } finally {
       delete globalThis.HTMLElement;
     }
     if (mod.isHtmlElement(el) !== false) fail('isHtmlElement after removal should be false');
+    // A fake without the platform getter (an own `isContentEditable` data
+    // property, as test fakes before 0.4.0 wrote): false, documented break.
+    class BareHTMLElement {}
+    globalThis.HTMLElement = BareHTMLElement;
+    try {
+      const fake = new BareHTMLElement();
+      fake.isContentEditable = true;
+      if (mod.isContentEditable(fake) !== false) fail('isContentEditable(fake without the prototype getter) should be false');
+    } finally {
+      delete globalThis.HTMLElement;
+    }
   }
 
   // 6. Asserts throw their own TypeError, whatever the value.

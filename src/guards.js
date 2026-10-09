@@ -22,11 +22,11 @@
 // - Returns a strict boolean.
 // - Never reads a property of the value, so no getter, `Symbol.toStringTag`,
 //   `Symbol.toPrimitive`, or `toString` on the value runs. Only the
-//   documented exceptions do: `isObjectStrict` (reads `Symbol.toStringTag`,
-//   that is its definition) and `isContentEditable` (reads
-//   `isContentEditable` once the value is an `HTMLElement`). A proxy's own
-//   traps (`getPrototypeOf` for `instanceof` and `isPlainObject`) can still
-//   run; their throws are caught.
+//   documented, deprecated exception does: `isObjectStrict` (reads
+//   `Symbol.toStringTag`, that is its definition). `isContentEditable` calls
+//   the platform's own getter from `HTMLElement.prototype` (0.4.0), not one
+//   the value defines. A proxy's own traps (`getPrototypeOf` for
+//   `instanceof` and `isPlainObject`) can still run; their throws are caught.
 //
 // Tree-shake: this module has no top-level side effects. Every export is an
 // arrow function or an alias, and feature detection happens inside the
@@ -182,10 +182,17 @@ export const isObjectLoose = (x) => typeof x === 'object' && x !== null;
 /** lodash's, es-toolkit's and ramda-adjunct's name for `isObjectLoose`. Same function. */
 export const isObjectLike = isObjectLoose;
 
-// Browser-only: HTMLElement whose `isContentEditable` is true.
+// Browser-only: an HTMLElement that the platform says is editable. Calls the
+// `isContentEditable` getter of `HTMLElement.prototype` on the value
+// (0.4.0), so nothing the value defines runs or answers: an own property, a
+// subclass getter, or a proxy `get` trap. The platform getter brand-checks
+// its receiver; a proxy or a fake element throws, which gives false. A
+// missing `HTMLElement` makes `instanceof` throw, also false (no `inst`
+// helper: one try/catch keeps the single-guard bundle under budget).
 export const isContentEditable = (x) => {
+    const H = G.HTMLElement;
     try {
-        return inst(x, G.HTMLElement) && x.isContentEditable === true;
+        return x instanceof H && Object.getOwnPropertyDescriptor(H.prototype, 'isContentEditable').get.call(x) === true;
     } catch {
         return false;
     }

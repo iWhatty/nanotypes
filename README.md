@@ -153,7 +153,7 @@ Guards are generated dynamically from available runtime constructors. Some guard
 | `is.error(x)`                     | Instance of `Error`                      |
 | `is.textNode(x)`                  | DOM Text node (browser only)             |
 | `is.htmlElement(x)`               | `HTMLElement` node (browser only)        |
-| `is.contentEditable(x)`           | Editable DOM node                        |
+| `is.contentEditable(x)`           | Editable `HTMLElement`, as the platform's `HTMLElement.prototype` getter says (not a property the value defines) |
 | `is.positiveNumber(x)`            | Greater than 0                           |
 | `is.negativeNumber(x)`            | Less than 0                              |
 | `is.integer(x)`                   | Whole number                             |
@@ -248,7 +248,7 @@ nanotypes is hardened for modern environments:
 - Works consistently across Node, browsers, workers, and edge runtimes
 - Guards never throw, they return `false` (revoked proxies and throwing proxy traps included)
 - A guard's `true` is a verified claim: if it cannot verify part of its definition, it returns `false` (see [What `false` means](#what-false-means))
-- Guards don't run the value's code: no getters, `Symbol.toPrimitive`, or `toString` (exceptions: `isObjectStrict` reads `Symbol.toStringTag`, and `isContentEditable` reads `isContentEditable` on an `HTMLElement`)
+- Guards don't run the value's code: no getters, `Symbol.toPrimitive`, or `toString` (exception: the deprecated `isObjectStrict` reads `Symbol.toStringTag`; `isContentEditable` calls the platform's `HTMLElement.prototype` getter, never one the value defines)
 - Assertions throw clean `TypeError` messages with readable descriptions
 
 ### Runtime-adaptive behavior
@@ -282,7 +282,7 @@ The full rules, with the reasoning, an audit of every guard, and proposals under
 
 - A guard's `true` is a **verified claim**; `false` means "not verified"
 - Guards **never throw**
-- Guards **never run the value's code** (documented exceptions: `isObjectStrict`, `isContentEditable`)
+- Guards **never run the value's code** (documented exception: the deprecated `isObjectStrict`)
 - Type predicates match the runtime check
 - Names follow the ecosystem's meaning, or the docs say loudly where they don't (`isNil`, `isObject`)
 - Asserts **throw intentionally** (`TypeError`)

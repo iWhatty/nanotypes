@@ -133,6 +133,13 @@ export function isObjectLoose(x: unknown): x is object;
  * functions excluded (`_.isObjectLike`). A revoked proxy is true.
  */
 export function isObjectLike(x: unknown): x is object;
+/**
+ * An `HTMLElement` (this realm's) that the platform says is editable: calls
+ * the `isContentEditable` getter of `HTMLElement.prototype` on `x` (0.4.0),
+ * so nothing `x` defines answers (own property, subclass getter, proxy `get`
+ * trap). False for a proxy, a fake element whose class lacks that getter
+ * (jsdom does not implement it), and outside browsers. Never throws.
+ */
 export function isContentEditable(x: unknown): x is HTMLElement;
 
 // --- derived ---

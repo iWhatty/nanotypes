@@ -248,8 +248,10 @@ prototype check cannot avoid; its throw is caught.
 - `typeof`, `===`, `Array.isArray` (no traps), `Number.isFinite` /
   `Number.isInteger` (no coercion), and `Object.getPrototypeOf` (only the
   `getPrototypeOf` trap) are the building blocks that satisfy this.
-- Current documented exceptions: `isObjectStrict` (reads `Symbol.toStringTag`,
-  see P2) and `isContentEditable` (reads `isContentEditable`, see P3).
+- Current documented exception: `isObjectStrict` (reads `Symbol.toStringTag`,
+  see P2; deprecated in 0.4.0). `isContentEditable` was one until 0.4.0
+  (P3): it now calls the platform getter from `HTMLElement.prototype`,
+  which is not the value's code.
 
 ### 2.4 Type predicates are exactly as wide as what `true` verifies
 
@@ -426,7 +428,7 @@ or a documented exception to a rule; **Low** = cosmetic, naming, or DEV-only.
 5. **`isContentEditable` runs the value's code** (rule 2.3): once `x` is an
    `instanceof HTMLElement`, it reads `x.isContentEditable`, which can be an
    own property, a subclass getter, or a proxy `get` trap. Documented; a
-   throw is caught. Proposal P3.
+   throw is caught. Proposal P3. **Fixed in 0.4.0.**
 
 ### Low
 
@@ -648,6 +650,20 @@ a proxy `get` trap answers.
   get `false` either way.)
 
 **Recommendation: do it in 0.4.0** with a CHANGELOG note for test fakes.
+
+**Status: done in 0.4.0.** `isContentEditable` is
+`x instanceof HTMLElement && getOwnPropertyDescriptor(HTMLElement.prototype,
+'isContentEditable').get.call(x) === true` in one `try`/`catch` (the
+`inst` helper is not needed: a missing `HTMLElement` makes `instanceof`
+throw, which is `false`). Single-guard bundle 193 -> 191 B minified.
+`test/guardSafety.js` models the platform with a fake whose prototype
+getter brand-checks through a private field; on 0.3.1 it failed 15 times
+(own property and own getter answered, the own getter ran, a subclass
+getter answered, a proxy `get` trap ran, an old-style fake was `true`).
+Verified (jsdom 29.1.1, scratch install, no browser): jsdom has no
+`isContentEditable` on `HTMLElement.prototype`, so jsdom users got `false`
+before and still do. Breaking only for objects that shadow the property and
+for fakes that set it as an own property.
 
 ### P4. Refinement guards make the else branch `never` (types)
 
