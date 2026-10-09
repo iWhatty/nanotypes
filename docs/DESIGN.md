@@ -418,7 +418,7 @@ or a documented exception to a rule; **Low** = cosmetic, naming, or DEV-only.
    guards return `false`) and arrays (`isObject` returns `false`). For
    `x: string[] | string`, the else branch of `isObject` is typed `string`;
    for `x: (() => void) | Map<K, V>`, the else branch of `isObjectLoose` is
-   `never`. Types only. Proposal P5.
+   `never`. Types only. Proposal P5. **Fixed in 0.4.0** (`ObjectPart<T>`).
 4. **`isObjectStrict` runs the value's code** (rule 2.3): it reads
    `Symbol.toStringTag` through `Object.prototype.toString`, so a tag getter
    runs and a proxy's `get` trap runs. Documented since 0.3.0; a throw is
@@ -780,6 +780,47 @@ input typed plain `object` still gets `never` in the else branch
 
 **Recommendation: 0.4.0**, together with P4, under one "types follow the
 check" CHANGELOG heading, with type tests.
+
+**Status: done in 0.4.0, with a different shape than proposed above.**
+`isObject` / `isObj` narrow to `ObjectPart<T>`, `isObjectLoose` /
+`isObjectLike` to `ObjectLoosePart<T>` (named, namespace and assert forms):
+
+```ts
+type ObjectPart<T> = T extends Function | readonly unknown[] ? never : ObjectLoosePart<T>;
+type ObjectLoosePart<T> = T extends Function ? never
+  : T extends Primitive ? never
+  : T extends object ? (0 extends 1 & T ? Extract<object, T> : T)
+  : 0 extends 1 & T ? Extract<object, T> : T & object;
+```
+
+- Why not the proposed `unknown extends T ? object : Exclude<Extract<T,
+  object>, ...>`: (1) `object` alone is not assignable to `T`, which a type
+  predicate requires (`Extract<object, T>` is, as in `ArrayPart`); (2) a
+  bounded type parameter (`<T extends Entry | string>(x: T)`) left the true
+  branch as an unresolved `ObjectPart<T>`, not assignable to `Entry`, where
+  0.3.1's `x is object` narrowed through the constraint. A conditional that
+  is distributive at the top resolves through the constraint, so `any` is
+  caught inside the branches (`0 extends 1 & T`) instead of by a top-level
+  `unknown extends T` check. (3) `Exclude<..., (...args: any[]) => any>`
+  misses class constructors; `Function` catches them. (4) Branded
+  primitives (`NonEmptyString`, an intersection with an object type) extend
+  `object`, so primitives are dropped before the object test.
+- Results (type tests, TypeScript 5.0.4, 5.4.5, 6.0.3, strict and loose):
+  `string[] | string` -> true `never`, else both; `Record<string, unknown> |
+  string[]` -> `Record` / `string[]`; `(() => void) | Map` and
+  `typeof Widget | Map` -> `Map` / the function or class, for both guards;
+  `readonly Entry[] | Set<Entry>` and tuples handled; `unknown` -> `object`;
+  `any` -> `object`, else `any` (unchanged from 0.3.1); bounded and free
+  type parameters. `test/types/objects.test.ts`: 28 errors strict and 28 loose
+  on the declarations before this change (the object-family declarations
+  were unchanged since 0.3.1).
+- Remaining imprecision, as documented: an input typed plain `object` has a
+  `never` else branch.
+- Found on the way, not changed (no proposal approved it): `ArrayPart<T>`
+  (0.2.4) has the bounded-type-parameter limitation above:
+  `<T extends Entry[] | string>(x: T)` with `isArray(x)` does not narrow to
+  `Entry[]`. The same distributive shape would fix it. Candidate for a later
+  release.
 
 ### P6. `isFunc`: the ecosystem says `isFunction`; the predicate misses classes
 

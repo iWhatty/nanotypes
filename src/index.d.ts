@@ -113,6 +113,39 @@ type FunctionPart<T> = unknown extends T
     ? T & ((...args: any[]) => any)
     : Extract<T, Function>;
 
+// What isObject / isObj and isObjectLoose / isObjectLike narrow to (0.4.0,
+// docs/DESIGN.md P5). Both were `x is object`, but `object` includes
+// functions (both guards return false) and arrays (isObject returns false),
+// so the else branch lost members the value can still be:
+// `string[] | string` had `string` there, though an array lands there.
+// - Per union member: arrays (isObject only) and functions, class
+//   constructors included, are dropped; so are primitives (branded ones
+//   too); object types are kept as they are.
+// - Members that may or may not be objects (`{}`, `unknown`) narrow to
+//   `T & object`, so `unknown` narrows to `object`.
+// - `any` narrows to `object` and keeps `any` in the else branch (the
+//   ArrayPart lesson: a predicate type of `any` makes the else branch
+//   `never`). It is caught inside each branch, because the type is
+//   distributive at the top: that lets a bounded type parameter
+//   (`<T extends Entry | string>`) resolve through its constraint, where a
+//   top-level `unknown extends T` check would leave it unresolved.
+// - Remaining imprecision: an input typed plain `object` narrows to `object`
+//   with a `never` else branch, as before (arrays and functions cannot be
+//   subtracted from `object`).
+type Primitive = string | number | boolean | bigint | symbol | null | undefined;
+type ObjectPart<T> = T extends Function | readonly unknown[]
+  ? never
+  : ObjectLoosePart<T>;
+type ObjectLoosePart<T> = T extends Function
+  ? never
+  : T extends Primitive
+    ? never
+    : T extends object
+      ? (0 extends 1 & T ? Extract<object, T> : T)
+      : 0 extends 1 & T
+        ? Extract<object, T>
+        : T & object;
+
 // The generic instanceof forms `is(x, Ctor)` and `assertType(x, Ctor)` are
 // the call signatures of `IsNamespace` and `AssertTypeNamespace` below.
 
@@ -187,12 +220,14 @@ export function isNil(x: unknown): x is null;
  * literals, class instances, null-prototype objects, boxed primitives, Date,
  * Map, DOM nodes. Functions and arrays are false. Not lodash's `isObject`
  * (which includes both): for any non-null object including arrays use
- * `isObjectLoose` (lodash's `isObjectLike`). A revoked proxy is false, since
+ * `isObjectLike` / `isObjectLoose`. A revoked proxy is false, since
  * "not an array" cannot be verified (0.3.1). Never throws, reads no property.
+ * Narrows union members (0.4.0): arrays and functions stay in the else
+ * branch (`string[] | string` keeps both there); `unknown` narrows to `object`.
  */
-export function isObject(x: unknown): x is object;
+export function isObject<T>(x: T): x is ObjectPart<T>;
 /** Same function as `isObject` (not lodash's `isObject`). */
-export function isObj(x: unknown): x is object;
+export function isObj<T>(x: T): x is ObjectPart<T>;
 /**
  * @deprecated Use `isPlainObject`, which decides by prototype and runs none
  * of the value's code. This one reads `Symbol.toStringTag` (a getter or a
@@ -215,15 +250,17 @@ export function isPlainObject(x: unknown): x is Record<string, unknown>;
 export function isPojo(x: unknown): x is Record<string, unknown>;
 /**
  * Any non-null `typeof "object"` value, arrays included, functions excluded:
- * lodash's `isObjectLike`. A revoked proxy is true (`typeof` still answers).
+ * lodash's `isObjectLike` (also exported under that name). A revoked proxy
+ * is true (`typeof` still answers). Narrows union members (0.4.0): functions
+ * and classes stay in the else branch; `unknown` narrows to `object`.
  */
-export function isObjectLoose(x: unknown): x is object;
+export function isObjectLoose<T>(x: T): x is ObjectLoosePart<T>;
 /**
  * Same function as `isObjectLoose`, under the name lodash, es-toolkit and
  * ramda-adjunct use: any non-null `typeof "object"` value, arrays included,
  * functions excluded (`_.isObjectLike`). A revoked proxy is true.
  */
-export function isObjectLike(x: unknown): x is object;
+export function isObjectLike<T>(x: T): x is ObjectLoosePart<T>;
 /**
  * An `HTMLElement` (this realm's) that the platform says is editable: calls
  * the `isContentEditable` getter of `HTMLElement.prototype` on `x` (0.4.0),
@@ -366,8 +403,8 @@ export function assertNull(x: unknown): asserts x is null;
  * `null`; `undefined` throws. Message "Expected nil".
  */
 export function assertNil(x: unknown): asserts x is null;
-export function assertObject(x: unknown): asserts x is object;
-export function assertObj(x: unknown): asserts x is object;
+export function assertObject<T>(x: T): asserts x is ObjectPart<T>;
+export function assertObj<T>(x: T): asserts x is ObjectPart<T>;
 /**
  * @deprecated Use `assertPlainObject` (see `isObjectStrict` for how the
  * answers differ). Kept, unchanged; message "Expected objectStrict".
@@ -375,9 +412,9 @@ export function assertObj(x: unknown): asserts x is object;
 export function assertObjectStrict(x: unknown): asserts x is Record<string, unknown>;
 export function assertPlainObject(x: unknown): asserts x is Record<string, unknown>;
 export function assertPojo(x: unknown): asserts x is Record<string, unknown>;
-export function assertObjectLoose(x: unknown): asserts x is object;
+export function assertObjectLoose<T>(x: T): asserts x is ObjectLoosePart<T>;
 /** Same function as `assertObjectLoose` (lodash's `isObjectLike` name; message "Expected objectLoose"). */
-export function assertObjectLike(x: unknown): asserts x is object;
+export function assertObjectLike<T>(x: T): asserts x is ObjectLoosePart<T>;
 export function assertContentEditable(x: unknown): asserts x is HTMLElement;
 
 export function assertTruthy<T>(x: T): asserts x is Truthy<T>;
@@ -496,7 +533,7 @@ export interface IsNamespace {
    * `isObjectLoose` (lodash's `isObjectLike`). A revoked proxy is false, since
    * "not an array" cannot be verified (0.3.1). Never throws, reads no property.
    */
-  object(x: unknown): x is object;
+  object<T>(x: T): x is ObjectPart<T>;
   /**
    * @deprecated Use `is.plainObject`, which runs none of the value's code (see
    * `isObjectStrict` for how the answers differ). Reads `Symbol.toStringTag`.
@@ -508,12 +545,12 @@ export interface IsNamespace {
    * Any non-null `typeof "object"` value, arrays included, functions excluded:
    * lodash's `isObjectLike`. A revoked proxy is true (`typeof` still answers).
    */
-  objectLoose(x: unknown): x is object;
+  objectLoose<T>(x: T): x is ObjectLoosePart<T>;
   /** Same function as `is.objectLoose`: lodash's `isObjectLike` (arrays included, functions excluded). */
-  objectLike(x: unknown): x is object;
+  objectLike<T>(x: T): x is ObjectLoosePart<T>;
 
   /** Same function as `is.object` (not lodash's `isObject`). */
-  obj(x: unknown): x is object;
+  obj<T>(x: T): x is ObjectPart<T>;
   arr<T>(x: T): x is ArrayPart<T>;
 
   truthy<T>(x: T): x is TruthyPart<T>;
@@ -553,8 +590,8 @@ export interface AssertTypeNamespace {
   array<T>(x: T): asserts x is ArrayPart<T>;
   arr<T>(x: T): asserts x is ArrayPart<T>;
   numberSafe(x: unknown): asserts x is number;
-  object(x: unknown): asserts x is object;
-  obj(x: unknown): asserts x is object;
+  object<T>(x: T): asserts x is ObjectPart<T>;
+  obj<T>(x: T): asserts x is ObjectPart<T>;
   /** Throws unless `x` is neither `null` nor `undefined`. */
   defined<T>(x: T | null | undefined): asserts x is T;
   /** Same function as `assertType.defined` (remeda's `isNonNullish` name). */
@@ -574,9 +611,9 @@ export interface AssertTypeNamespace {
   objectStrict(x: unknown): asserts x is Record<string, unknown>;
   plainObject(x: unknown): asserts x is Record<string, unknown>;
   pojo(x: unknown): asserts x is Record<string, unknown>;
-  objectLoose(x: unknown): asserts x is object;
+  objectLoose<T>(x: T): asserts x is ObjectLoosePart<T>;
   /** Same function as `assertType.objectLoose` (lodash's `isObjectLike` name). */
-  objectLike(x: unknown): asserts x is object;
+  objectLike<T>(x: T): asserts x is ObjectLoosePart<T>;
 
   promise(x: unknown): asserts x is Promise<any>;
   date(x: unknown): asserts x is Date;
@@ -612,4 +649,4 @@ export namespace describe {
 // type only (importing it as a value is a compile error, since it does not
 // exist at run time). The helper types stay exported, as they were
 // (implicitly) before 0.4.0, so declaration emit in consumers can name them.
-export type { brand, Brand, Falsy, Truthy, TruthyPart, ArrayPart, FunctionPart };
+export type { brand, Brand, Falsy, Truthy, TruthyPart, ArrayPart, FunctionPart, ObjectPart, ObjectLoosePart };

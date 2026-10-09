@@ -262,6 +262,8 @@ if (isFiniteNumber(value)) {
 }
 ```
 
+**The object guards narrow union members (0.4.0).** `isObject` and `isObjectLike` / `isObjectLoose` were typed `x is object`, but TypeScript's `object` includes functions and arrays, which these guards reject. They now keep exactly the members the check can accept: for `x: string[] | string`, an array stays in the else branch of `isObject`; for `x: (() => void) | Map<K, V>`, `isObjectLike(x)` narrows to the `Map` and leaves the function in the else branch; `unknown` narrows to `object`. An input typed plain `object` still has a `never` else branch (TypeScript cannot subtract arrays from `object`). `isFunc` / `isFunction` likewise keep class constructors from a union.
+
 The brand is phantom (no runtime property). The brand types are exported for annotations, and combine: a value that passed `isPositiveNumber` and `isInteger` is both a `PositiveNumber` and an `Integer`. Asserts (`assertFiniteNumber(x)`) keep the plain types, since they have no else branch.
 
 > TypeScript tells you what *should* be true.
