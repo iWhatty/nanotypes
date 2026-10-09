@@ -190,6 +190,8 @@ export const assertPojo = assertPlainObject;
 export function assertObjectLoose(x) {
     if (!isObjectLoose(x)) throw new TypeError(`Expected objectLoose, got ${describe.value(x)}`);
 }
+/** Same function as `assertObjectLoose` (lodash's `isObjectLike` name). */
+export const assertObjectLike = assertObjectLoose;
 
 /** @param {unknown} x */
 export function assertContentEditable(x) {

@@ -2,6 +2,12 @@
 
 > Initial cut seeded from `git log` by the host repo's `tools/seed-changelogs.mjs` script. Version groupings infer release boundaries from tags and commit subjects; rough cuts are expected — review and tighten as part of normal maintenance.
 
+## 0.4.0 — unreleased
+
+The proposals in `docs/DESIGN.md` section 6, as decided by the product owner. Runtime answers change only for `isContentEditable` (test fakes); the other breaking items are type-level narrowing.
+
+- **feat: `isObjectLike` / `assertObjectLike` / `is.objectLike` / `assertType.objectLike`** (P1). The same functions as the `isObjectLoose` forms, under lodash's, es-toolkit's and ramda-adjunct's name: any non-null `typeof "object"` value, arrays included, functions excluded. `isObject` keeps its meaning (non-array objects); it never becomes lodash's `isObject`. Single-import bundles: `isObjectLike` 60 B, `assertObjectLike` 700 B minified.
+
 ## 0.3.1 — unreleased
 
 - **fix(isObject): a revoked proxy is `false`, as the 0.3.0 entry said.** `isObject` / `isObj` (`is.object`, `is.obj`, and the `/auto` forms) returned `true` for a revoked proxy, with an object or an array target. They computed "not an array" as `!isArray(x)`, and `isArray`'s `false` also means "could not tell" (`Array.isArray` throws on a revoked proxy). `isObject` now runs its own `Array.isArray` in a `try`/`catch` and returns `false` when it throws. So `assertObject`, `assertObj`, `assertType.object` and `assertType.obj` now throw on a revoked proxy. Found by dice3D-js (T-034).

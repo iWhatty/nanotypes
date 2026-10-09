@@ -173,6 +173,8 @@ export const isPojo = isPlainObject;
 // included, functions excluded (lodash's `isObjectLike`). `typeof` works on
 // a revoked proxy, so a revoked proxy is `true`.
 export const isObjectLoose = (x) => typeof x === 'object' && x !== null;
+/** lodash's, es-toolkit's and ramda-adjunct's name for `isObjectLoose`. Same function. */
+export const isObjectLike = isObjectLoose;
 
 // Browser-only: HTMLElement whose `isContentEditable` is true.
 export const isContentEditable = (x) => {

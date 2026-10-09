@@ -134,6 +134,13 @@ const FAMILY_FORMS = {
   isArray: ['isArr', 'is.array', 'is.arr'],
 };
 
+// Ecosystem-name aliases (0.4.0, docs/DESIGN.md P1, P6, P9): [canonical,
+// alias]. Each must be the same function in every form.
+const ALIASES = [
+  ['isObjectLoose', 'isObjectLike'],
+  ['assertObjectLoose', 'assertObjectLike'],
+];
+
 /**
  * @param {string} label
  * @param {Record<string, any>} mod   default entry
@@ -239,6 +246,28 @@ export function runGuardSafety(label, mod, auto) {
       if (autoFn !== fn) fail(`/auto ${form} is not the same function as the default entry's`);
     }
   }
+  // 1d. Aliases: every form of an alias (named, `is.*` / `assertType.*`,
+  // /auto) is the same function as the canonical named export.
+  for (const [canonical, alias] of ALIASES) {
+    const ns = canonical.startsWith('assert') ? 'assertType' : 'is';
+    const key = (name) => {
+      const rest = name.slice(ns === 'is' ? 2 : 6);
+      return rest.charAt(0).toLowerCase() + rest.slice(1);
+    };
+    const want = mod[canonical];
+    if (typeof want !== 'function') { fail(`${canonical} is not exported`); continue; }
+    const forms = {
+      [alias]: mod[alias],
+      [`${ns}.${key(alias)}`]: mod[ns]?.[key(alias)],
+      [`${ns}.${key(canonical)}`]: mod[ns]?.[key(canonical)],
+      [`auto ${alias}`]: auto[alias],
+      [`auto ${ns}.${key(alias)}`]: auto[ns]?.[key(alias)],
+    };
+    for (const [form, fn] of Object.entries(forms)) {
+      if (fn !== want) fail(`${form} is not the same function as ${canonical}`);
+    }
+  }
+
   const table = objectFamilyTable();
   for (const [valueLabel, x, row] of table) {
     FAMILY.forEach((name, i) => {

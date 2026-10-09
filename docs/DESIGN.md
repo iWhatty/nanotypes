@@ -581,6 +581,17 @@ nanotypes' `isObject` gives the *narrower* answer, so a lodash reader's
 mistake fails closed (rejects a function or array they expected to pass)
 rather than letting an unexpected value through.
 
+**Status: done in 0.4.0 ((a) and (b)).** `isObjectLike`, `assertObjectLike`,
+`is.objectLike` and `assertType.objectLike` are the same functions as the
+`isObjectLoose` forms (identity checked in `test/guardSafety.js`, every
+form, both entries); the JSDoc calls it lodash's `isObjectLike`.
+`isObjectLoose` stays, as the original name, and is not deprecated: both
+names are documented, and `isObjectLike` is the one the README mapping
+uses. `assertObjectLike` keeps the alias's message ("Expected
+objectLoose"), because an alias is the same function. `isObject` keeps
+its meaning ((c) declined). Single-import bundles: `isObjectLike` 60 B,
+`assertObjectLike` 700 B minified.
+
 ### P2. `isObjectStrict` cannot verify its claim without running the value's code
 
 Its definition is `Object.prototype.toString` tag `"Object"`, which reads

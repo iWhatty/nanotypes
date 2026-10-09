@@ -113,6 +113,12 @@ export function isPojo(x: unknown): x is Record<string, unknown>;
  * lodash's `isObjectLike`. A revoked proxy is true (`typeof` still answers).
  */
 export function isObjectLoose(x: unknown): x is object;
+/**
+ * Same function as `isObjectLoose`, under the name lodash, es-toolkit and
+ * ramda-adjunct use: any non-null `typeof "object"` value, arrays included,
+ * functions excluded (`_.isObjectLike`). A revoked proxy is true.
+ */
+export function isObjectLike(x: unknown): x is object;
 export function isContentEditable(x: unknown): x is HTMLElement;
 
 // --- derived ---
@@ -228,6 +234,8 @@ export function assertObjectStrict(x: unknown): asserts x is Record<string, unkn
 export function assertPlainObject(x: unknown): asserts x is Record<string, unknown>;
 export function assertPojo(x: unknown): asserts x is Record<string, unknown>;
 export function assertObjectLoose(x: unknown): asserts x is object;
+/** Same function as `assertObjectLoose` (lodash's `isObjectLike` name; message "Expected objectLoose"). */
+export function assertObjectLike(x: unknown): asserts x is object;
 export function assertContentEditable(x: unknown): asserts x is HTMLElement;
 
 export function assertTruthy<T>(x: T): asserts x is Truthy<T>;
@@ -347,6 +355,8 @@ export interface IsNamespace {
    * lodash's `isObjectLike`. A revoked proxy is true (`typeof` still answers).
    */
   objectLoose(x: unknown): x is object;
+  /** Same function as `is.objectLoose`: lodash's `isObjectLike` (arrays included, functions excluded). */
+  objectLike(x: unknown): x is object;
 
   /** Same function as `is.object` (not lodash's `isObject`). */
   obj(x: unknown): x is object;
@@ -403,6 +413,8 @@ export interface AssertTypeNamespace {
   plainObject(x: unknown): asserts x is Record<string, unknown>;
   pojo(x: unknown): asserts x is Record<string, unknown>;
   objectLoose(x: unknown): asserts x is object;
+  /** Same function as `assertType.objectLoose` (lodash's `isObjectLike` name). */
+  objectLike(x: unknown): asserts x is object;
 
   promise(x: unknown): asserts x is Promise<any>;
   date(x: unknown): asserts x is Date;

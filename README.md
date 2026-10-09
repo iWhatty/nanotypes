@@ -74,14 +74,14 @@ Both shapes are kept in lockstep. Every guard `isFoo` named export has a matchin
 
 | You want to accept | Use | `true` for | `false` for |
 | --- | --- | --- | --- |
-| any non-null object, arrays included (lodash's `isObjectLike`) | `isObjectLoose` | `{}`, `[]`, class instances, `Map`, `Date`, boxed primitives | functions, `null`, primitives |
+| any non-null object, arrays included (lodash's `isObjectLike`) | `isObjectLike` / `isObjectLoose` | `{}`, `[]`, class instances, `Map`, `Date`, boxed primitives | functions, `null`, primitives |
 | a non-null object that is not an array | `isObject` / `isObj` | `{}`, class instances, `Map`, `Date`, `Math`, boxed primitives | arrays, functions, `null`, primitives, revoked proxies |
 | a plain object: a literal, `Object.create(null)`, parsed JSON | `isPlainObject` / `isPojo` | `{}`, `Object.create(null)`, `Math`, `JSON` | class instances, `Map`, `Date`, arrays, another realm's `{}` |
 | an object whose `toString` tag is `Object`, from any realm | `isObjectStrict` | `{}`, class instances, another realm's `{}` | `Map`, `Date`, `Math`, arrays, anything with a `Symbol.toStringTag` (it reads the tag, so a tag getter runs) |
 | an array, from any realm | `isArray` / `isArr` | arrays, proxies of arrays | revoked proxies |
 | a function or class | `isFunc` | functions, classes | everything else |
 
-`isObject` is **not** lodash's `isObject`: lodash's is also true for functions and arrays. For that, write `isObjectLoose(x) || isFunc(x)`. The full table over 28 awkward values (proxies, other realms, boxed primitives) is in [docs/DESIGN.md](https://github.com/iWhatty/nanotypes/blob/main/docs/DESIGN.md#3-decision-table).
+`isObject` is **not** lodash's `isObject`: lodash's is also true for functions and arrays. For that, write `isObjectLike(x) || isFunc(x)`. The full table over 28 awkward values (proxies, other realms, boxed primitives) is in [docs/DESIGN.md](https://github.com/iWhatty/nanotypes/blob/main/docs/DESIGN.md#3-decision-table).
 
 ### Null and undefined
 
@@ -98,8 +98,8 @@ Both shapes are kept in lockstep. Every guard `isFoo` named export has a matchin
 
 | lodash | nanotypes |
 | --- | --- |
-| `_.isObject` | `isObjectLoose(x) \|\| isFunc(x)` |
-| `_.isObjectLike` | `isObjectLoose` |
+| `_.isObject` | `isObjectLike(x) \|\| isFunc(x)` |
+| `_.isObjectLike` | `isObjectLike` (alias of `isObjectLoose`, 0.4.0) |
 | `_.isPlainObject` | `isPlainObject` (prototype only: false for another realm's `{}`, true for `Math`; reads no property) |
 | `_.isNil` | `isNullish` |
 | `_.isNull` | `isNull` |
@@ -146,7 +146,7 @@ Guards are generated dynamically from available runtime constructors. Some guard
 | `is.object(x)` / `is.obj(x)`      | Non-null object, not array, not function (not lodash's `isObject`) |
 | `is.objectStrict(x)`              | `Object.prototype.toString` gives `[object Object]` (object literals, null-prototype objects, class instances; not if `Symbol.toStringTag` is set) |
 | `is.plainObject(x)`               | Prototype is `Object.prototype` or `null` (see below) |
-| `is.objectLoose(x)`               | Non-null object, arrays included (lodash's `isObjectLike`) |
+| `is.objectLoose(x)` / `is.objectLike(x)` | Non-null object, arrays included (lodash's `isObjectLike`) |
 | `is.func(x)`                      | `typeof x === "function"` (classes included) |
 | `is.map(x)`                       | Instance of `Map`                        |
 | `is.date(x)`                      | Instance of `Date`                       |
