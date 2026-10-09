@@ -412,7 +412,7 @@ or a documented exception to a rule; **Low** = cosmetic, naming, or DEV-only.
    types `n` as `never`, though `-1` lands there. Same for every namespace
    form. Verified with tsc 6.0.3 (scratch probe; reproduced in P4). dice3D-js
    documented the `isFiniteNumber` case in its `docs/nanotypes-codemod.md`.
-   Types only. Proposal P4.
+   Types only. Proposal P4. **Fixed in 0.4.0** (branded predicates).
 3. **`isObject` and `isObjectLoose` predicates are wider than the check**
    (rule 2.4). Both are `x is object`, but `object` includes functions (both
    guards return `false`) and arrays (`isObject` returns `false`). For
@@ -450,7 +450,7 @@ or a documented exception to a rule; **Low** = cosmetic, naming, or DEV-only.
 8. **`isFalsy(x): x is Falsy` is narrower than the check**: `NaN` and
    `document.all` are falsy, but `Falsy` has no `NaN` type, so `isFalsy(n)`
    with `n: number` types `n` as `0`. Types only; no exact type exists.
-   Mentioned in P4.
+   Mentioned in P4. Documented in the JSDoc in 0.4.0; unchanged.
 9. **`isFunc(x): x is (...args: any[]) => any`** does not narrow to a class
    (`typeof Foo` has no call signature), though `isFunc(Foo)` is `true`; the
    true branch becomes an intersection. TypeScript's own `typeof x ===
@@ -706,6 +706,58 @@ branch on TypeScript 5.0, 5.4 and current, and exported brand type names
 `isTruthy`, use the brand only when `Exclude<T, Falsy>` equals `T`.
 `isFalsy` (narrower than the check: `NaN` is typed `0`) has no exact type;
 document it.
+
+**Status: done in 0.4.0 (option (a)).**
+- Brand: `declare const brand: unique symbol; type Brand<B extends string> =
+  { readonly [brand]: { readonly [K in B]: true } }`. Keys, not a single tag
+  value, so brands combine: with one tag property,
+  `PositiveNumber & Integer` would have conflicting literal property types
+  and reduce to `never`. Each brand also carries the weaker checks it
+  implies: `Integer = number & Brand<'numberSafe' | 'finite' | 'integer'>`,
+  so an `Integer` is a `FiniteNumber` and a `NumberSafe`, and
+  `isFiniteNumber(int)` with `int: Integer` has a `never` else branch, which
+  is right.
+- Exported: `NumberSafe`, `FiniteNumber`, `Integer`, `PositiveNumber`,
+  `NegativeNumber`, `NonEmptyString`, `ContentEditableElement`, `Brand`,
+  and `brand` as a type only (`export type { brand }`: importing it as a
+  value is a compile error, since it does not exist at run time). Adding
+  an export list ends the implicit export of every declaration in
+  `index.d.ts`, so the helpers that were implicitly exported before
+  (`Falsy`, `Truthy`, `ArrayPart`) are listed too, with the new ones
+  (`TruthyPart`, `FunctionPart`).
+- Declaration emit: a consumer library that returns a narrowed value emits
+  `import("nanotypes").FiniteNumber` or `Brand<...>`; with `Brand` not
+  exported it fails with TS4023 ("cannot be named").
+  `test/types/declarationEmit.mjs` pins this (and failed when `Brand` was
+  removed from the export list).
+- `isTruthy`: the recommendation above ("brand only when
+  `Exclude<T, Falsy>` equals `T`") is not enough: for `string | null`,
+  `Exclude` gives `string`, and the else branch lost `string` though `''`
+  lands there. `TruthyPart<T>` works per union member: falsy literals are
+  dropped, truthy literals and object types kept, and members that can
+  still be falsy are branded (`string` -> `string & Brand<'nonEmpty'>`,
+  `number` -> `number & Brand<'numberSafe' | 'truthy'>`, `bigint` ->
+  `bigint & Brand<'truthy'>`, and a branded number that may be 0 gets
+  `'truthy'` added). `PositiveNumber`, `NegativeNumber` and `NonEmptyString`
+  are always truthy and kept. `unknown` and `any` are unchanged
+  (`isTruthy(any)` still has a `never` else branch, as in 0.3.x: the
+  predicate type for `any` is `any`; changing it to `{}` would break
+  `if (isTruthy(x)) x.foo` for untyped input).
+- `isFalsy`: unchanged; its JSDoc says `NaN` is typed `0`.
+- Asserts keep the plain types (`asserts x is number`).
+- Backward compatibility, checked by type tests: the true branch is
+  assignable to `number` / `string` / `HTMLElement`, works in arithmetic,
+  `Math.*`, template literals, computed keys, `number[]` literals. The one
+  documented cost: a variable *initialised* from a narrowed value is
+  branded (`let x = v` infers `FiniteNumber`), so reassigning a plain
+  number to it is an error until it is annotated (`let x: number = v`);
+  the same for an array literal inferred as `FiniteNumber[]`. Code that
+  relied on the unsound `never` else branch gets correct errors.
+- Tests: `test/types/refinements.test.ts` (48 errors strict, 48 loose on the
+  0.3.1 declarations), on TypeScript 5.0.4, 5.4.5 and 6.0.3, strict and
+  loose: else branches on `number`, `string`, `HTMLElement`, unions,
+  literal unions, `unknown`, `any`, every namespace form, brand relations,
+  `isTruthy` per member kind, asserts, and the `let` cost above.
 
 ### P5. `isObject` / `isObjectLoose` predicates are wider than the check (types)
 

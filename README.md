@@ -235,6 +235,35 @@ assertType.numberSafe(x);
 
 This means IDEs narrow types correctly, fewer `as` casts, fewer `@ts-ignore` comments, safer boundary validation.
 
+**Refinement guards narrow to branded types (0.4.0).** A type predicate works in both directions: `false` removes the type from the value. `isPositiveNumber` checks more than "is a number", so with a plain `x is number`, `if (!isPositiveNumber(n))` typed `n: number` as `never`, though `-1` lands there. These guards now narrow to a branded type, which is still a `number` (or `string`, or `HTMLElement`) in the true branch and leaves the input type intact in the else branch:
+
+| Guard | Narrows to | A plain `number` / `string` in the else branch |
+| --- | --- | --- |
+| `isNumberSafe` | `NumberSafe` | kept (`NaN`) |
+| `isFiniteNumber` (`isFinite`) | `FiniteNumber` | kept (`NaN`, `Infinity`) |
+| `isInteger` | `Integer` (also a `FiniteNumber`) | kept (`1.5`) |
+| `isPositiveNumber` / `isNegativeNumber` | `PositiveNumber` / `NegativeNumber` | kept |
+| `isNonEmptyString` | `NonEmptyString` | kept (`''`) |
+| `isContentEditable` | `ContentEditableElement` | `HTMLElement` kept |
+| `isTruthy` | `string` -> `NonEmptyString`, `number` -> branded non-zero number; falsy literals dropped | kept (`''`, `0`, `NaN`) |
+
+```ts
+import { isFiniteNumber, type FiniteNumber } from 'nanotypes';
+
+function clamp(n: number) {
+  if (!isFiniteNumber(n)) return 0;   // n: number here (was never)
+  return Math.min(n, 1);              // n: FiniteNumber, usable as a number
+}
+
+if (isFiniteNumber(value)) {
+  let x = value;          // x: FiniteNumber
+  x = 0;                  // error: 0 is a plain number, not a FiniteNumber
+  let y: number = value;  // annotate when you reassign
+}
+```
+
+The brand is phantom (no runtime property). The brand types are exported for annotations, and combine: a value that passed `isPositiveNumber` and `isInteger` is both a `PositiveNumber` and an `Integer`. Asserts (`assertFiniteNumber(x)`) keep the plain types, since they have no else branch.
+
 > TypeScript tells you what *should* be true.
 > nanotypes checks what *is* true.
 

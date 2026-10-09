@@ -31,7 +31,7 @@
     "scripts": {
         "build": "node esbuild.config.js",
         "test": "node ./test/smokeTest.js && npm run build && node ./test/distSafety.js && npm run test:types",
-        "test:types": "tsc -p test/types/tsconfig.json && tsc -p test/types/tsconfig.loose.json && node test/types/deprecations.mjs",
+        "test:types": "tsc -p test/types/tsconfig.json && tsc -p test/types/tsconfig.loose.json && node test/types/deprecations.mjs && node test/types/declarationEmit.mjs",
         "prepublishOnly": "npm test"
     },
     "keywords": [
