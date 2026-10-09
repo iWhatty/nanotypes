@@ -89,10 +89,10 @@ Both shapes are kept in lockstep. Every guard `isFoo` named export has a matchin
 | --- | --- | --- |
 | strictly `null` | `isNull` (or plain `x === null`) | `x === null` |
 | `null` or `undefined` (lodash's `isNil`) | `isNullish` | `x == null` |
-| neither `null` nor `undefined` | `isDefined` | `x != null` |
+| neither `null` nor `undefined` | `isNonNullish` / `isDefined` | `x != null` |
 | strictly `undefined` | `isUndefined` | `x === undefined` |
 
-`isNil` is strictly `null` here, **not** lodash's `isNil`. Prefer `isNull` or `isNullish`, which can't be misread. `isDefined` rejects `null` too; in remeda and ts-extras `isDefined` means only `!== undefined`.
+`isNil` is strictly `null` here, **not** lodash's `isNil`. Prefer `isNull` or `isNullish`, which can't be misread. `isDefined` rejects `null` too; in remeda and ts-extras `isDefined` means only `!== undefined`. `isNonNullish` (0.4.0, remeda's name) is the same function and can't be misread; `isDefined` keeps its meaning.
 
 ### Coming from lodash
 
@@ -138,7 +138,7 @@ Guards are generated dynamically from available runtime constructors. Some guard
 | `is.bigint(x)` / `is.bigi(x)`     | BigInt primitive                         |
 | `is.symbol(x)` / `is.sym(x)`      | Symbol primitive                         |
 | `is.undefined(x)` / `is.undef(x)` | Strictly `undefined`                     |
-| `is.defined(x)`                   | Not `null` or `undefined`                |
+| `is.defined(x)` / `is.nonNullish(x)` | Not `null` or `undefined`             |
 | `is.nullish(x)`                   | `null` or `undefined`                    |
 | `is.null(x)`                      | Strictly `null`                          |
 | `is.nil(x)`                       | Strictly `null` (not lodash's `isNil`)   |
@@ -176,8 +176,9 @@ Guards are generated dynamically from available runtime constructors. Some guard
 | `isNil`      | `is.nil`        | `null` only (alias of `isNull`; differs from lodash) | `x === null` |
 | `isNullish`  | `is.nullish`    | `null` or `undefined`        | `x == null`  |
 | `isDefined`  | `is.defined`    | neither `null` nor `undefined` | `x != null` |
+| `isNonNullish` | `is.nonNullish` | neither (same function as `isDefined`; remeda's name) | `x != null` |
 
-Each has an assert: `assertNull` / `assertType.null`, `assertNil` / `assertType.nil`, `assertNullish` / `assertType.nullish`, `assertDefined` / `assertType.defined`.
+Each has an assert: `assertNull` / `assertType.null`, `assertNil` / `assertType.nil`, `assertNullish` / `assertType.nullish`, `assertDefined` / `assertType.defined`, `assertNonNullish` / `assertType.nonNullish`.
 
 > **Coming from lodash or Ramda?** Their `isNil(x)` is true for `null` **or** `undefined`. In nanotypes that is `isNullish(x)`. nanotypes' `isNil(undefined)` is `false`. Prefer `isNull` when you mean strictly `null`, so readers don't have to remember the difference.
 

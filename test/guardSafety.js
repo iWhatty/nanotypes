@@ -139,6 +139,8 @@ const FAMILY_FORMS = {
 const ALIASES = [
   ['isObjectLoose', 'isObjectLike'],
   ['assertObjectLoose', 'assertObjectLike'],
+  ['isDefined', 'isNonNullish'],
+  ['assertDefined', 'assertNonNullish'],
 ];
 
 /**

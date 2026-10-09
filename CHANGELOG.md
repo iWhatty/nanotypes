@@ -7,6 +7,7 @@
 The proposals in `docs/DESIGN.md` section 6, as decided by the product owner. Runtime answers change only for `isContentEditable` (test fakes); the other breaking items are type-level narrowing.
 
 - **feat: `isObjectLike` / `assertObjectLike` / `is.objectLike` / `assertType.objectLike`** (P1). The same functions as the `isObjectLoose` forms, under lodash's, es-toolkit's and ramda-adjunct's name: any non-null `typeof "object"` value, arrays included, functions excluded. `isObject` keeps its meaning (non-array objects); it never becomes lodash's `isObject`. Single-import bundles: `isObjectLike` 60 B, `assertObjectLike` 700 B minified.
+- **feat: `isNonNullish` / `assertNonNullish` / `is.nonNullish` / `assertType.nonNullish`** (P9). The same functions as the `isDefined` forms (`x != null`), under remeda's name. `isDefined` keeps its meaning: in remeda, ts-extras and ts-is-present, `isDefined` is `x !== undefined` and lets `null` through; nanotypes' rejects `null`. Prefer `isNonNullish`, which can't be misread. Single-import bundles: `isNonNullish` 39 B, `assertNonNullish` 675 B minified.
 
 ## 0.3.1 — unreleased
 

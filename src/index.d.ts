@@ -73,6 +73,13 @@ export function isArr<T>(x: T): x is ArrayPart<T>;
  * remeda's or ts-extras' `isDefined` (`x !== undefined`, so `null` passes there).
  */
 export function isDefined<T>(x: T | null | undefined): x is T;
+/**
+ * Same function as `isDefined`: neither `null` nor `undefined` (`x != null`),
+ * under remeda's name (es-toolkit: `isNotNil`; ts-extras: `isPresent`). The
+ * name that can't be misread: remeda's and ts-extras' `isDefined` is
+ * `x !== undefined`, so `null` passes there.
+ */
+export function isNonNullish<T>(x: T | null | undefined): x is T;
 /** True when `x` is `null` or `undefined` (`x == null`). This is lodash's `isNil`. */
 export function isNullish(x: unknown): x is null | undefined;
 /** True only when `x` is `null` (`x === null`); `undefined` is false. */
@@ -219,6 +226,8 @@ export function assertArray<T>(x: T): asserts x is ArrayPart<T>;
 export function assertArr<T>(x: T): asserts x is ArrayPart<T>;
 /** Throws `TypeError` when `x` is `null` or `undefined`. */
 export function assertDefined<T>(x: T | null | undefined): asserts x is T;
+/** Same function as `assertDefined` (remeda's `isNonNullish` name; message "Expected defined"). */
+export function assertNonNullish<T>(x: T | null | undefined): asserts x is T;
 /** Throws `TypeError` unless `x` is `null` or `undefined` (lodash's `isNil`). */
 export function assertNullish(x: unknown): asserts x is null | undefined;
 /** Throws `TypeError` unless `x` is `null`; `undefined` throws. */
@@ -330,6 +339,8 @@ export interface IsNamespace {
   array<T>(x: T): x is ArrayPart<T>;
   /** Neither `null` nor `undefined` (`x != null`). Not remeda's `isDefined` (`!== undefined`). */
   defined<T>(x: T | null | undefined): x is T;
+  /** Same function as `is.defined` (`x != null`), under remeda's name. */
+  nonNullish<T>(x: T | null | undefined): x is T;
   /** `null` or `undefined` (`x == null`). This is lodash's `isNil`. */
   nullish(x: unknown): x is null | undefined;
   /** Strictly `null` (`x === null`); `undefined` is false. */
@@ -401,6 +412,8 @@ export interface AssertTypeNamespace {
   obj(x: unknown): asserts x is object;
   /** Throws unless `x` is neither `null` nor `undefined`. */
   defined<T>(x: T | null | undefined): asserts x is T;
+  /** Same function as `assertType.defined` (remeda's `isNonNullish` name). */
+  nonNullish<T>(x: T | null | undefined): asserts x is T;
   /** Throws unless `x` is `null` or `undefined` (lodash's `isNil`). */
   nullish(x: unknown): asserts x is null | undefined;
   /** Throws unless `x` is strictly `null`; `undefined` throws. */

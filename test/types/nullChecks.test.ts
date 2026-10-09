@@ -15,6 +15,8 @@ import {
   type AssertTypeNamespace,
   is,
   isDefined,
+  isNonNullish,
+  assertNonNullish,
   isNil,
   isNull,
   isNullish,
@@ -59,6 +61,24 @@ else expectType<Equal<typeof viaNullish, string>>();
 
 declare const viaDefined: string | null | undefined;
 if (isDefined(viaDefined)) expectType<Equal<typeof viaDefined, string>>();
+
+// isNonNullish (0.4.0) is isDefined under remeda's name: same declaration.
+// Without strictNullChecks the union is just `number`, so the else branch is
+// `never` there.
+expectType<Equal<typeof isNonNullish, typeof isDefined>>();
+expectType<Equal<typeof is.nonNullish, typeof is.defined>>();
+expectType<Equal<typeof assertType.nonNullish, typeof assertType.defined>>();
+declare const viaNonNullish: number | null | undefined;
+if (isNonNullish(viaNonNullish)) expectType<Equal<typeof viaNonNullish, number>>();
+else expectType<Equal<typeof viaNonNullish, IfStrict<null | undefined, never>>>();
+declare const viaNonNullishNs: { id: number } | null;
+if (is.nonNullish(viaNonNullishNs)) expectType<Equal<typeof viaNonNullishNs, { id: number }>>();
+declare const assertedNonNullish: string | undefined;
+assertNonNullish(assertedNonNullish);
+expectType<Equal<typeof assertedNonNullish, string>>();
+declare const assertedNonNullishNs: string | null;
+assertType.nonNullish(assertedNonNullishNs);
+expectType<Equal<typeof assertedNonNullishNs, string>>();
 
 // Namespace forms: is.null and is.nil.
 declare const viaNamespace: number | null | undefined;

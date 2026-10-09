@@ -105,8 +105,14 @@ export const isArr = isArray;
 // Null checks. isNull and isNil are strictly `null`. lodash/Ramda's isNil
 // (null OR undefined) is isNullish here.
 
-/** Neither `null` nor `undefined` (`x != null`). */
+/**
+ * Neither `null` nor `undefined` (`x != null`). Not remeda's or ts-extras'
+ * `isDefined` (`x !== undefined`, where `null` passes).
+ */
 export const isDefined = (x) => x !== undefined && x !== null;
+
+/** remeda's name for `isDefined` (`x != null`). Same function. */
+export const isNonNullish = isDefined;
 
 /** `null` or `undefined` (`x == null`). This is lodash's `isNil`. */
 export const isNullish = (x) => x === undefined || x === null;

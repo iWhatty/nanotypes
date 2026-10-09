@@ -143,6 +143,8 @@ export const assertArr = assertArray;
 export function assertDefined(x) {
     if (!isDefined(x)) throw new TypeError(`Expected defined, got ${describe.value(x)}`);
 }
+/** Same function as `assertDefined` (remeda's `isNonNullish` name; message "Expected defined"). */
+export const assertNonNullish = assertDefined;
 
 /**
  * Throws unless `x` is `null` or `undefined` (lodash's `isNil`).

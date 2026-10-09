@@ -6,6 +6,7 @@
 //   isNull / isNil      strictly null           (x === null)
 //   isNullish           null or undefined       (x == null; lodash's isNil)
 //   isDefined           neither                 (x != null)
+//   isNonNullish        neither; same function as isDefined (0.4.0, remeda's name)
 //
 // Every surface (named export, `is.*`, and the /auto `is.*`) must agree with
 // the plain JS comparison on every corpus value, and every assert must throw
@@ -32,6 +33,8 @@ const family = [
   { guard: 'isNil', assert: 'assertNil', key: 'nil', message: 'Expected nil', expect: (x) => x === null },
   { guard: 'isNullish', assert: 'assertNullish', key: 'nullish', message: 'Expected nullish', expect: (x) => x == null },
   { guard: 'isDefined', assert: 'assertDefined', key: 'defined', message: 'Expected defined', expect: (x) => x != null },
+  // An alias keeps its canonical assert's message.
+  { guard: 'isNonNullish', assert: 'assertNonNullish', key: 'nonNullish', message: 'Expected defined', expect: (x) => x != null },
 ];
 
 function throwsTypeError(fn, x) {
@@ -89,6 +92,11 @@ export function runNullChecks(label, mod, auto) {
   // isNil stays an exact alias of isNull (strictly null, not lodash's isNil).
   if (mod.isNil !== mod.isNull) fail('isNil is not the same function as isNull');
   if (mod.isNil(undefined) !== false) fail('isNil(undefined) must stay false');
+  // isNonNullish is isDefined under remeda's name; isDefined keeps `!= null`
+  // (null is rejected), unlike remeda's and ts-extras' isDefined.
+  if (mod.isNonNullish !== mod.isDefined) fail('isNonNullish is not the same function as isDefined');
+  if (mod.assertNonNullish !== mod.assertDefined) fail('assertNonNullish is not the same function as assertDefined');
+  if (mod.isDefined(null) !== false) fail('isDefined(null) must stay false');
 
   console.log(` null checks (${label}): ${family.length} guards x ${corpus.length} values ${failures ? 'FAILED' : 'ok'}`);
   return failures;

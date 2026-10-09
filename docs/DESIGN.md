@@ -756,3 +756,13 @@ rejected rather than let through, so the mistake fails closed.
   answer).
 
 **Recommendation: (a) now, (b) in 0.4.0.**
+
+**Status: done in 0.4.0 ((a) and (b); (c) declined).** `isNonNullish`,
+`assertNonNullish`, `is.nonNullish` and `assertType.nonNullish` are the
+same functions as the `isDefined` forms, with the same declarations
+(`<T>(x: T | null | undefined): x is T`); `assertNonNullish` keeps the
+"Expected defined" message. `isDefined` keeps `x != null`, pinned by
+`test/nullChecks.js` (`isDefined(null)` stays `false`). The JSDoc of both
+names states the divergence from remeda, ts-extras and ts-is-present, and
+the README null-check tables list `isNonNullish` first. Single-import
+bundles: `isNonNullish` 39 B, `assertNonNullish` 675 B minified.
