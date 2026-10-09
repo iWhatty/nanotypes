@@ -88,6 +88,7 @@ const consumers = [
   // 0.4.0 ecosystem-name aliases: same budget as the guard they alias.
   ['isObjectLike', false, GUARD_BUDGET], ['assertObjectLike', false, ASSERT_BUDGET],
   ['isNonNullish', false, GUARD_BUDGET], ['assertNonNullish', false, ASSERT_BUDGET],
+  ['isFunction', false, GUARD_BUDGET], ['assertFunction', false, ASSERT_BUDGET],
   ['assertNull', false, ASSERT_BUDGET], ['assertObject', false, ASSERT_BUDGET], ['assertMap', false, ASSERT_BUDGET],
   ['is', true, Infinity],
 ];

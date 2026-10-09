@@ -30,6 +30,25 @@ type ArrayPart<T> = unknown extends T
     ? T & unknown[]
     : Extract<T, readonly unknown[]>;
 
+// What isFunc / isFunction / assertFunc narrow to (0.4.0, docs/DESIGN.md P6),
+// shaped like ArrayPart. `typeof x === 'function'` is true for classes too:
+// - Function members of a union (anything with a call or construct
+//   signature) are kept as they are, class constructors included:
+//   `typeof Widget | string` narrows to `typeof Widget`, with `string` in
+//   the else branch. Before 0.4.0 a class member became a callable
+//   intersection and stayed in the else branch.
+// - Input with no function member (`object`, `{}`) narrows to
+//   `T & ((...args: any[]) => any)`, as before.
+// - `unknown` and `any` narrow to `(...args: any[]) => any`, as before: the
+//   compiler's own `typeof` narrowing gives `Function`, which is not
+//   assignable to a specific signature such as `(e: Event) => void`. The
+//   else branch of `any` stays `any`.
+type FunctionPart<T> = unknown extends T
+  ? Extract<(...args: any[]) => any, T>
+  : [Extract<T, Function>] extends [never]
+    ? T & ((...args: any[]) => any)
+    : Extract<T, Function>;
+
 // The generic instanceof forms `is(x, Ctor)` and `assertType(x, Ctor)` are
 // the call signatures of `IsNamespace` and `AssertTypeNamespace` below.
 
@@ -55,8 +74,14 @@ export function isSymbol(x: unknown): x is symbol;
 export function isSym(x: unknown): x is symbol;
 export function isUndefined(x: unknown): x is undefined;
 export function isUndef(x: unknown): x is undefined;
-/** `typeof x === 'function'`, classes included. Other libraries call this `isFunction`. */
-export function isFunc(x: unknown): x is (...args: any[]) => any;
+/**
+ * `typeof x === 'function'`, classes included. Other libraries call this
+ * `isFunction` (also exported). Union members that are classes or functions
+ * are kept as they are; `unknown` narrows to `(...args: any[]) => any`.
+ */
+export function isFunc<T>(x: T): x is FunctionPart<T>;
+/** Same function as `isFunc`, under the name lodash and every other surveyed library use. */
+export function isFunction<T>(x: T): x is FunctionPart<T>;
 
 // --- manual / structural guards ---
 /**
@@ -234,7 +259,9 @@ export function assertSymbol(x: unknown): asserts x is symbol;
 export function assertSym(x: unknown): asserts x is symbol;
 export function assertUndefined(x: unknown): asserts x is undefined;
 export function assertUndef(x: unknown): asserts x is undefined;
-export function assertFunc(x: unknown): asserts x is (...args: any[]) => any;
+export function assertFunc<T>(x: T): asserts x is FunctionPart<T>;
+/** Same function as `assertFunc` (message "Expected function"). */
+export function assertFunction<T>(x: T): asserts x is FunctionPart<T>;
 
 export function assertArray<T>(x: T): asserts x is ArrayPart<T>;
 export function assertArr<T>(x: T): asserts x is ArrayPart<T>;
@@ -301,7 +328,10 @@ export interface IsNamespace {
   bigint(x: unknown): x is bigint;
   symbol(x: unknown): x is symbol;
   undefined(x: unknown): x is undefined;
-  func(x: unknown): x is (...args: any[]) => any;
+  /** `typeof x === 'function'`, classes included. */
+  func<T>(x: T): x is FunctionPart<T>;
+  /** Same function as `is.func`. */
+  function<T>(x: T): x is FunctionPart<T>;
   str(x: unknown): x is string;
   num(x: unknown): x is number;
   bool(x: unknown): x is boolean;
@@ -423,7 +453,9 @@ export interface AssertTypeNamespace {
   bigint(x: unknown): asserts x is bigint;
   symbol(x: unknown): asserts x is symbol;
   undefined(x: unknown): asserts x is undefined;
-  func(x: unknown): asserts x is (...args: any[]) => any;
+  func<T>(x: T): asserts x is FunctionPart<T>;
+  /** Same function as `assertType.func`. */
+  function<T>(x: T): asserts x is FunctionPart<T>;
   str(x: unknown): asserts x is string;
   num(x: unknown): asserts x is number;
   bool(x: unknown): asserts x is boolean;

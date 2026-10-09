@@ -123,6 +123,8 @@ export const assertUndef = assertUndefined;
 export function assertFunc(x) {
     if (!isFunc(x)) throw new TypeError(`Expected function, got ${describe.value(x)}`);
 }
+/** Same function as `assertFunc`. */
+export const assertFunction = assertFunc;
 
 // =============================================================================
 // Manual / structural asserts

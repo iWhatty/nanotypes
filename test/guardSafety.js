@@ -142,6 +142,8 @@ const ALIASES = [
   ['assertObjectLoose', 'assertObjectLike'],
   ['isDefined', 'isNonNullish'],
   ['assertDefined', 'assertNonNullish'],
+  ['isFunc', 'isFunction'],
+  ['assertFunc', 'assertFunction'],
 ];
 
 /**

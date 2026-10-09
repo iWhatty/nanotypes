@@ -8,5 +8,5 @@
     "lib": ["es2022", "dom"],
     "skipLibCheck": false
   },
-  "files": ["isArray.test.ts", "nullChecks.test.ts", "finiteNumber.test.ts", "aliases.test.ts"]
+  "files": ["isArray.test.ts", "nullChecks.test.ts", "finiteNumber.test.ts", "aliases.test.ts", "functions.test.ts"]
 }

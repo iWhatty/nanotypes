@@ -32,7 +32,7 @@ const CURRENT = [
   'isNull', 'assertNull', 'is.null', 'assertType.null',
   'isNullish', 'is.nullish', 'isDefined', 'isNonNullish',
   'isPlainObject', 'assertPlainObject', 'is.plainObject', 'assertType.plainObject', 'isPojo',
-  'isObject', 'isObjectLoose', 'isObjectLike',
+  'isObject', 'isObjectLoose', 'isObjectLike', 'isFunc', 'isFunction',
   'isFiniteNumber', 'assertFiniteNumber', 'is.finiteNumber', 'is.finite',
 ];
 

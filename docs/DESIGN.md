@@ -455,6 +455,7 @@ or a documented exception to a rule; **Low** = cosmetic, naming, or DEV-only.
    (`typeof Foo` has no call signature), though `isFunc(Foo)` is `true`; the
    true branch becomes an intersection. TypeScript's own `typeof x ===
    'function'` narrows to `Function`. Types only. Mentioned in P6.
+   **Fixed in 0.4.0** (`FunctionPart<T>`).
 10. **Instanceof guards claim prototype-chain membership, not the internal
     slot.** `isMap(Object.create(Map.prototype))` is `true` though every
     `Map` method throws on it, and another realm's `Map` is `false`. This is
@@ -739,6 +740,21 @@ check" CHANGELOG heading, with type tests.
   match what `typeof x === 'function'` narrows to.
 
 **Recommendation: the alias in 0.4.0; the predicate change with P4/P5.**
+
+**Status: done in 0.4.0.** `isFunction`, `assertFunction`, `is.function`
+and `assertType.function` are the same functions as the `isFunc` forms
+(identity tested). `isFunc` is not deprecated. The predicate is generic,
+`x is FunctionPart<T>`, shaped like `ArrayPart<T>`: the function members of
+a union (`Extract<T, Function>`, which includes class constructor types)
+are kept as they are; input with no function member narrows to
+`T & ((...args: any[]) => any)` as before. Deliberate deviation from the
+proposal: `unknown` and `any` still narrow to `(...args: any[]) => any`,
+not to `Function`. `Function` is what the compiler's own `typeof` gives,
+but it is not assignable to a specific signature, so
+`if (isFunc(u)) listeners.push(u)` (with `listeners: ((e: Event) => void)[]`)
+would stop compiling: a break with no soundness gain worth it, since
+`(...args: any[]) => any` already accepts any call. Type tests in
+`test/types/functions.test.ts` (18 errors strict, 17 loose on 0.3.1).
 
 ### P7. Instanceof guards check the prototype chain, not the internal slot
 

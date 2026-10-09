@@ -85,6 +85,8 @@ export const isUndefined = (x) => typeof x === 'undefined';
 export const isUndef = isUndefined;
 
 export const isFunc = (x) => typeof x === 'function';
+/** The ecosystem's name for `isFunc` (lodash, es-toolkit, `@sindresorhus/is`). Same function. */
+export const isFunction = isFunc;
 
 // =============================================================================
 // Manual / structural guards
