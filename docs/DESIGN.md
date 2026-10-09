@@ -1,7 +1,8 @@
 # nanotypes design notes
 
 Status: started 2026-10-08 for 0.3.1 (dice3D-js T-034: `isObject` on a
-revoked proxy). It lives in the repository and is not in the npm package:
+revoked proxy); updated for 0.4.0, which ships the product owner's
+decisions on the proposals (section 6, a "Status" under each). It lives in the repository and is not in the npm package:
 `files` ships what runs and what editors read (`dist/`, the `.d.ts` JSDoc,
 the README), and the README links here. The essentials an agent or a reader
 needs at the point of use (exact checks, ecosystem divergences) are in the
@@ -15,7 +16,8 @@ Contents:
 3. Decision table: the object family over awkward values, measured.
 4. Audit: every guard and assert against the principles.
 5. Fixes in 0.3.1.
-6. Proposals P1-P9: breaking or debatable changes, for the product owner.
+6. Proposals P1-P9: breaking or debatable changes, the decisions, and what
+   shipped in 0.4.0.
 
 ## 1. Ecosystem
 
@@ -81,9 +83,11 @@ Sources:
 **Where nanotypes differs.**
 - `isObject`: every library that uses the name (lodash, underscore,
   es-toolkit compat, `@sindresorhus/is`, ramda-adjunct's `isObj`) includes
-  functions and arrays. nanotypes excludes both. Proposal P1.
+  functions and arrays. nanotypes excludes both, and keeps doing so.
+  Proposal P1.
 - `isObjectLoose` is what lodash, es-toolkit and ramda-adjunct call
-  `isObjectLike` (remeda: `isObjectType`). Same check, different name.
+  `isObjectLike` (remeda: `isObjectType`). Same check, different name;
+  `isObjectLike` is an alias since 0.4.0.
 - `isPlainObject`: only remeda has nanotypes' exact definition. The other
   two camps accept another realm's plain object (`is-plain-obj`,
   `@sindresorhus/is`, es-toolkit by prototype shape; lodash and jQuery by
@@ -91,7 +95,8 @@ Sources:
   `Symbol.toStringTag`, which nanotypes' accepts (`Math`, `JSON`). Users
   will assume cross-realm support; the README guide says it is not there.
 - `isObjectStrict` has no counterpart anywhere. "Strict" misleads: it
-  accepts class instances, which every `isPlainObject` rejects. Proposal P2.
+  accepts class instances, which every `isPlainObject` rejects. Proposal P2;
+  deprecated in 0.4.0.
 - Running the value's code is common elsewhere: lodash's `isPlainObject`
   even writes to the object. nanotypes' rule 2.3 is stricter than the
   ecosystem, and that is a selling point for hostile or untrusted input.
@@ -115,10 +120,11 @@ undefined); ts-is-present [`src/index.ts`](https://github.com/robertmassaioli/ts
 
 **Where nanotypes differs.**
 - `isNil` (strictly `null`) conflicts with lodash, ramda and es-toolkit
-  (`== null`). Known since dice3D-js T-028; deprecation proposed (P8).
+  (`== null`). Known since dice3D-js T-028; deprecated in 0.4.0 (P8).
 - `isDefined` (`!= null`) conflicts with remeda, ts-extras and
   ts-is-present, where `isDefined` is `!== undefined` and `null` passes.
-  New finding; proposal P9.
+  Proposal P9: `isNonNullish` (remeda's name) is an alias since 0.4.0;
+  `isDefined` keeps its meaning.
 - `isNullish` matches remeda.
 
 ### Numbers
@@ -470,7 +476,9 @@ or a documented exception to a rule; **Low** = cosmetic, naming, or DEV-only.
     rejects other realms' plain objects, which most libraries accept;
     `isObjectLoose` is what the ecosystem calls `isObjectLike`; `isFunc`
     where everyone else says `isFunction`; `isNumberSafe` can be misread as
-    `Number.isSafeInteger`. Proposals P1, P6, P8, P9.
+    `Number.isSafeInteger`. Proposals P1, P6, P8, P9. **0.4.0:** aliases
+    `isObjectLike`, `isFunction`, `isNonNullish`; `isNil` deprecated;
+    `isPlainObject` and `isNumberSafe` unchanged (documented).
 
 ### Conforming (checked, no finding)
 
@@ -555,9 +563,23 @@ gzip level 9.
 
 ## 6. Proposals
 
-Not implemented: each is breaking or debatable. Each has a recommendation;
-the product owner decides. "Breaking" means a consumer can see a
-different runtime answer or a new type error.
+Written for 0.3.1 as proposals: each is breaking or debatable, and each
+has a recommendation. "Breaking" means a consumer can see a different
+runtime answer or a new type error. The product owner approved the
+recommended outcome of each; the "Status" under each proposal says what
+shipped in 0.4.0 and where it deviates from the text above it.
+
+| | Decision | 0.4.0 |
+|---|---|---|
+| P1 `isObject` naming | keep the meaning; add `isObjectLike` | done |
+| P2 `isObjectStrict` runs code | deprecate for `isPlainObject` | done; cross-realm guard stays a proposal |
+| P3 `isContentEditable` reads the value | call the platform getter | done (breaking for test fakes) |
+| P4 refinement else branch `never` | required phantom brands | done (breaking, types) |
+| P5 object predicates too wide | `ObjectPart<T>` | done, distributive shape (breaking, types) |
+| P6 `isFunction`, classes | alias; `FunctionPart<T>` | done (`unknown` keeps `(...args: any[]) => any`) |
+| P7 slot-based instanceof | not now | not done |
+| P8 `isNil` | deprecate | done |
+| P9 `isDefined` naming | add `isNonNullish` | done |
 
 ### P1. `isObject` means something else in the ecosystem
 
@@ -865,6 +887,8 @@ Breaking: cross-realm values flip to `true`; prototype fakes flip to
 instance, by prototype chain"), done in the 0.3.1 README guide. Revisit
 per guard if a user hits a cross-realm case.
 
+**Status: not done in 0.4.0, as decided.** The written proposal stands.
+
 ### P8. Carry-overs
 
 - **`isNil` deprecation** (dice3D-js T-028, proposal 1, recommendation
@@ -882,7 +906,8 @@ per guard if a user hits a cross-realm case.
 - **`isNumberSafe`** reads like `Number.isSafeInteger`; it is "a number
   that is not `NaN`" (Infinity included). Its JSDoc says so since 0.3.1.
   An unambiguous alias is possible but not recommended unless users report
-  confusion.
+  confusion. **0.4.0:** no alias; its predicate is now the branded
+  `NumberSafe` (P4), whose JSDoc repeats the definition.
 - **"`false` means not verified"** (rule 2.1) belongs in the README's
   design principles; done in 0.3.1.
 

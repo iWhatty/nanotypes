@@ -15,6 +15,8 @@
 // 1c. The object family (isObject, isObjectLoose, isObjectStrict,
 //    isPlainObject, isArray) against the docs/DESIGN.md decision table, and
 //    every alias / namespace form is the same function.
+// 1d. Ecosystem-name aliases (0.4.0: isObjectLike, isFunction, isNonNullish
+//    and their asserts) are the same functions in every form.
 // 2. No guard reads a property of the value (a recording `get` trap stays
 //    silent), except the documented isObjectStrict (Symbol.toStringTag).
 //    This includes /auto's scanner-added guards and the generic `is(x, C)`,

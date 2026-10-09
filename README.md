@@ -302,6 +302,15 @@ import { is, assertType } from 'nanotypes/auto';
 
 `/auto` walks `globalThis` at module load and adds every constructor-shaped global to the `is` namespace, on top of the curated static set. Trade-off: a larger surface that TypeScript can't narrow against (the `.d.ts` for `/auto` is the same as the default; the extra guards are reachable but un-narrowed). About ~370 bytes larger gzipped than the default. Useful for diagnostic or introspective code; not recommended as a default import in size-sensitive bundles.
 
+### Migration to 0.4.0
+
+Runtime answers change only for `isContentEditable`; the rest is new names, deprecations, and more precise types. Details in [CHANGELOG.md](https://github.com/iWhatty/nanotypes/blob/main/CHANGELOG.md).
+
+- **New names (aliases, same functions):** `isObjectLike` (= `isObjectLoose`), `isFunction` (= `isFunc`), `isNonNullish` (= `isDefined`), with their asserts and namespace forms.
+- **Deprecated (still work):** `isNil` -> `isNull` (or `isNullish` for lodash's meaning); `isObjectStrict` -> `isPlainObject` (answers differ for class instances, other realms' objects, and `Math` / `JSON`).
+- **`isContentEditable`** asks the platform's `HTMLElement.prototype` getter. Test fakes that set `isContentEditable` as an own property now get `false`: put a getter on the fake's prototype.
+- **Types:** refinement guards narrow to branded types (`FiniteNumber`, `PositiveNumber`, `NonEmptyString`, ...), so the else branch keeps the input type. A variable initialised from a narrowed value is branded too: write `let n: number = value` if you reassign plain numbers to it. The object guards and `isFunc` narrow union members exactly (arrays, functions and classes go where the runtime sends them).
+
 ### Migration from 0.0.x / 0.1.0
 
 - **0.0.x → 0.1.0:** the default entry no longer runs the global scanner at import; the scanner is opt-in via `/auto`. If you were relying on a guard for an exotic global like `is.urlPattern`, switch the import line to `'nanotypes/auto'`.
