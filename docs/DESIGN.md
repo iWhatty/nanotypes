@@ -278,12 +278,16 @@ or a documented exception to a rule; **Low** = cosmetic, naming, or DEV-only.
    its error. It never throws (0.3.0). Not a guard, so rule 2.3 does not
    strictly apply, but an assert is where hostile values end up. **Fixed in
    0.3.1:** the name comes from the prototype's own `constructor` data
-   property; accessors are not called.
+   property and its own `name` data property, read by descriptor; a getter
+   is not called.
 7. **The `is(value, Type)` namespace call (and `/auto`'s, and every
    scanner-added `/auto` guard) reads `value.constructor.name` for its DEV
    warning** on a mismatch: a getter on the value runs, in DEV only. This is
    why `test/guardSafety.js` exempted `/auto`'s scanner guards from the
-   no-read rule. **Fixed in 0.3.1:** the warning uses `describe.value`.
+   no-read rule. **Fixed in 0.3.1:** the warning says `typeof value` (or
+   `null`) and passes the value itself to `console.warn`, as before. Using
+   `describe.value` there would have pulled `describe` into the `is`
+   namespace bundle (+380 B minified) for a DEV-only message.
 8. **`isFalsy(x): x is Falsy` is narrower than the check**: `NaN` and
    `document.all` are falsy, but `Falsy` has no `NaN` type, so `isFalsy(n)`
    with `n: number` types `n` as `0`. Types only; no exact type exists.
@@ -325,8 +329,241 @@ or a documented exception to a rule; **Low** = cosmetic, naming, or DEV-only.
 
 ## 5. Fixes in 0.3.1
 
-(in progress)
+All three are bug fixes under section 2 and change no answer for an
+ordinary value. Tests first: `test/guardSafety.js` was extended in its own
+commit and failed on 0.3.0 (28 failures on `src/` with DEV off, 82 on
+`dist/` with DEV on), then passed after the fix.
+
+1. **`isObject` on a revoked proxy is `false`** (audit 1, dice3D-js T-034).
+   `isObject` does its own `Array.isArray` inside `try`/`catch` instead of
+   `!isArray(x)`. Same for `isObj`, `is.object`, `is.obj`, the `/auto`
+   forms, and therefore `assertObject`, `assertObj`, `assertType.object`,
+   `assertType.obj`, which now throw on a revoked proxy. `isObjectLoose`
+   stays `true` (rule 2.1: `typeof` still answers). Single-guard bundle
+   118 -> 114 B minified.
+   - Failing on 0.3.0, for example:
+     `FAIL [src] isObject(revoked array proxy) is true, expected false`,
+     `FAIL [src] assertType.obj(revoked proxy) should throw a TypeError`,
+     `FAIL [src] isObject(revoked proxy, [] target) is true, expected false (decision table)`.
+2. **`describe.value` runs no code on the value** (audit 6). Every assert
+   message goes through it. The name now comes from the prototype's own
+   `constructor` data property and that constructor's own `name` data
+   property, read by descriptor. Same output for ordinary values, class
+   instances, `Object.create(Map.prototype)`, and other realms' objects.
+   Differences: only the nearest prototype is consulted, and never through
+   a getter (`{ get constructor() {...} }` describes as `Object` without
+   running the getter; `Object.create(Object.create(Map.prototype))`
+   describes as `Object`, not `Map`). Cost: about +90 B minified (+35 to
+   +45 B gz) per assert-using bundle (`assertObject` 658 -> 745 B min,
+   387 -> 421 B gz), under the 900 B budget. A version that walked the
+   prototype chain to keep the old `Map` answer cost +180 B and was dropped.
+   - Failing on 0.3.0: `FAIL [src] describe.value ran a constructor getter on the value`.
+3. **The DEV mismatch warning of `is(x, C)` reads no property of the
+   value** (audit 7). Default and `/auto` namespaces, and every
+   scanner-added `/auto` guard, which forwards to it. The message says
+   `got <typeof>` (or `null`) and still passes the value to `console.warn`.
+   The `is` namespace bundle: 4,840 -> 4,885 B min (1,873 -> 1,876 B gz).
+   - Failing on 0.3.0 `dist/` (DEV on): `FAIL [dist] is(x, Map) read
+     constructor from the value`, and the same for 51 `/auto` scanner
+     guards (these were exempted from the no-read check before).
+
+The test changes that pin this (all in `test/guardSafety.js`, run on `src/`
+by `smokeTest.js` and on `dist/` by `distSafety.js`):
+
+- Exact values, not only "no throw": all 276 guard forms x 10 hostile
+  values (revoked proxies with object, array and function targets, proxies
+  with throwing traps, throwing getters and conversions, a null-prototype
+  object) = 2,760 exact answers, from a table of which guards can verify
+  their claim on which value.
+- Every assert form (328: named, `assertType.*`, `/auto`) throws a
+  `TypeError` exactly when its guard is `false` on each hostile value.
+- The section 3 decision table, 28 rows x 5 guards, plus identity checks
+  that every alias and namespace form is the same function.
+- The no-read rule covers `/auto`'s scanner guards and the generic
+  `is(x, C)` of both namespaces, with DEV warnings on (the `dist/` run
+  reports whether DEV was exercised).
+
+Also in 0.3.1, documentation only: JSDoc on the object family and the
+divergent names in `index.d.ts` (rule 2.7), the README "Which guard do I
+want?" guide, and this document.
+
+Sizes measured with esbuild, bundle + minify, ESM, platform neutral; gz is
+gzip level 9.
 
 ## 6. Proposals
 
-(in progress)
+Not implemented: each is breaking or debatable. Each has a recommendation;
+the product owner decides. "Breaking" means a consumer can see a
+different runtime answer or a new type error.
+
+### P1. `isObject` means something else in the ecosystem
+
+Section 1: lodash, underscore, es-toolkit and `@sindresorhus/is` call
+"non-null object or function" `isObject`; nanotypes' `isObject` excludes
+functions and arrays. The ecosystem calls nanotypes' `isObjectLoose`
+`isObjectLike`.
+
+- (a) Keep the names, document the difference everywhere it is read
+  (done in 0.3.1: JSDoc, README guide, this file).
+- (b) Add `isObjectLike` (and `assertObjectLike`, `is.objectLike`) as an
+  alias of `isObjectLoose`, documented as the preferred name. Non-breaking;
+  costs nothing when tree-shaken; makes lodash vocabulary work.
+- (c) Give `isObject` the lodash meaning. Breaking in the worst way (rule
+  2.7): `isObject(fn)` and `isObject([])` flip from `false` to `true` with
+  no error, the `isNil` trap again.
+- (d) Deprecate `isObject` in favour of an unambiguous name such as
+  `isNonArrayObject`. Non-breaking, but every caller gets a strikethrough
+  for a name that is not wrong, only different.
+
+**Recommendation: (a) now, (b) in 0.4.0; never (c).** Keep `isObjectLoose`
+as a permanent alias. (d) is not worth the churn: unlike `isNil`,
+nanotypes' `isObject` gives the *narrower* answer, so a lodash reader's
+mistake fails closed (rejects a function or array they expected to pass)
+rather than letting an unexpected value through.
+
+### P2. `isObjectStrict` cannot verify its claim without running the value's code
+
+Its definition is `Object.prototype.toString` tag `"Object"`, which reads
+`Symbol.toStringTag` (a getter, or a proxy `get` trap, runs). Rules 2.1
+and 2.3 cannot both hold for it.
+
+- (a) Keep as the documented exception (status quo).
+- (b) Redefine without running code: walk the prototype chain with
+  `Object.getOwnPropertyDescriptor(o, Symbol.toStringTag)`; a data property
+  decides, an accessor returns `false` (unverifiable), none found falls
+  back to the built-in tag. Changes answers only for objects with a tag
+  getter (they become `false`; most already are), but costs bytes and runs
+  `getOwnPropertyDescriptor` traps on proxies.
+- (c) Deprecate in favour of `isPlainObject` (JSDoc `@deprecated`, keeps
+  working). Its two real uses are "plain object" (better served by
+  `isPlainObject`, which never runs code) and "plain object from another
+  realm" (no guard serves that today).
+
+**Recommendation: (c) in 0.4.0**, plus, if a cross-realm plain check is
+wanted, a new guard defined by prototype shape (the prototype's prototype
+is `null` and the prototype's own `constructor` data property is named
+`Object`), which needs no getter.
+
+### P3. `isContentEditable` reads a getter on the value
+
+It reads `x.isContentEditable`, so an own property, a subclass getter, or
+a proxy `get` trap answers.
+
+- Proposed: call the platform getter directly,
+  `Object.getOwnPropertyDescriptor(HTMLElement.prototype,
+  'isContentEditable').get.call(x)`, inside the existing try/catch. The
+  platform getter brand-checks `x` (a proxy or a fake element throws
+  "Illegal invocation", so `false`), and nothing the value defines runs.
+- Breaking for: objects that shadow `isContentEditable`, and test fakes
+  (`class HTMLElement {}` with an own `isContentEditable = true`, which the
+  current `test/guardSafety.js` uses) now get `false` unless the fake
+  defines the getter on its prototype. (UNVERIFIED here, no browser run:
+  whether jsdom implements `isContentEditable`; if it does not, jsdom users
+  get `false` either way.)
+
+**Recommendation: do it in 0.4.0** with a CHANGELOG note for test fakes.
+
+### P4. Refinement guards make the else branch `never` (types)
+
+`isNumberSafe`, `isPositiveNumber`, `isNegativeNumber`, `isInteger`,
+`isFiniteNumber`/`isFinite` (`x is number`), `isNonEmptyString`
+(`x is string`), `isContentEditable` (`x is HTMLElement`), `isTruthy`
+(`x is Truthy<T>`), and every namespace form. Reproduction (TypeScript
+6.0.3 and 5.0.4):
+
+```ts
+declare const n: number;
+if (isPositiveNumber(n)) { /* number */ } else { n; /* never, though -1 lands here */ }
+```
+
+Options, all probed with tsc 6.0.3 and 5.0.4:
+
+- (a) A required phantom brand: `x is number & { readonly [refined]: 'positive' }`
+  (`refined` a `declare const ... : unique symbol`). Else branches keep
+  `number`, `number | string`, literal unions (`1 | -1`) and `unknown`;
+  the true branch is still usable as `number` / `string` everywhere
+  (arithmetic, `Math.max`, template literals, computed keys). An
+  *optional* brand (`[refined]?:`) is not enough: literal unions still go
+  to `never`.
+- (b) Overloads `(x: number): boolean; (x: unknown): x is number`. Fixes a
+  `number` input, but `number | string` still loses `number` in the else
+  branch.
+- (c) Return plain `boolean`. Sound, but `unknown` input no longer narrows,
+  which is the main reason to use the guard.
+- (d) Leave and document.
+
+Breaking analysis for (a): runtime unchanged. Code that relied on the
+unsound else branch (`n` being `never`) gets new, correct errors; code that
+assigns the true-branch value to a `number` keeps working; hovers show the
+brand. Asserts keep `asserts x is number` (no else branch, already sound).
+
+**Recommendation: (a) in 0.4.0**, with type tests for each guard's else
+branch on TypeScript 5.0, 5.4 and current, and exported brand type names
+(`PositiveNumber`, `NonEmptyString`, ...) so users can annotate. For
+`isTruthy`, use the brand only when `Exclude<T, Falsy>` equals `T`.
+`isFalsy` (narrower than the check: `NaN` is typed `0`) has no exact type;
+document it.
+
+### P5. `isObject` / `isObjectLoose` predicates are wider than the check (types)
+
+Both are `x is object`, which includes functions and (for `isObject`)
+arrays. Proposed, following `ArrayPart<T>` (0.2.4):
+
+```ts
+type ObjectPart<T> = unknown extends T
+  ? object
+  : Exclude<Extract<T, object>, readonly unknown[] | ((...args: any[]) => any)>;
+export function isObject<T>(x: T): x is ObjectPart<T> & T;
+```
+
+Probed on 6.0.3: `string[] | string` keeps the array in the else branch;
+`(() => void) | Map<K, V>` narrows to the `Map` and keeps the function in
+the else branch; `unknown` narrows to `object`. Remaining imprecision: an
+input typed plain `object` still gets `never` in the else branch
+(TypeScript cannot subtract arrays from `object`), as today.
+`isObjectLoose` gets the same shape without the array exclusion.
+
+**Recommendation: 0.4.0**, together with P4, under one "types follow the
+check" CHANGELOG heading, with type tests.
+
+### P6. `isFunc`: the ecosystem says `isFunction`; the predicate misses classes
+
+- Add `isFunction` / `assertFunction` / `is.function` as aliases. An agent
+  writing lodash vocabulary gets an import error today: it fails loud, but
+  costs a round trip.
+- Predicate: `x is (...args: any[]) => any` does not match a class
+  constructor, though `isFunc(class {})` is `true`. A generic
+  `Extract<T, Function>`-style shape (with `Function` for `unknown`) would
+  match what `typeof x === 'function'` narrows to.
+
+**Recommendation: the alias in 0.4.0; the predicate change with P4/P5.**
+
+### P7. Instanceof guards check the prototype chain, not the internal slot
+
+`isMap(Object.create(Map.prototype))` is `true` (every `Map` method throws
+on it); another realm's `Map` is `false`. Node's `util.types.isMap` checks
+the slot and works across realms. A brand check
+(`Object.getOwnPropertyDescriptor(Map.prototype, 'size').get.call(x)` in a
+try/catch) would verify the slot, see across realms, and run no value
+code.
+
+Breaking: cross-realm values flip to `true`; prototype fakes flip to
+`false`; each guard needs its own brand probe (bytes per guard).
+
+**Recommendation: not now.** Document the definition ("same-realm
+instance, by prototype chain"), done in the 0.3.1 README guide. Revisit
+per guard if a user hits a cross-realm case.
+
+### P8. Carry-overs
+
+- **`isNil` deprecation** (dice3D-js T-028, proposal 1, recommendation
+  (a)): still open; 0.3.0 did not add `@deprecated`. Recommendation
+  unchanged: `@deprecated` JSDoc on `isNil`, `assertNil`, `is.nil`,
+  `assertType.nil`, pointing at `isNull` (and `isNullish` for the lodash
+  meaning), in 0.4.0. Never reuse the name with the lodash meaning.
+- **`isNumberSafe`** reads like `Number.isSafeInteger`; it is "a number
+  that is not `NaN`" (Infinity included). Its JSDoc says so since 0.3.1.
+  An unambiguous alias is possible but not recommended unless users report
+  confusion.
+- **"`false` means not verified"** (rule 2.1) belongs in the README's
+  design principles; done in 0.3.1.
