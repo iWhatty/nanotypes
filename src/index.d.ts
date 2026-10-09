@@ -42,6 +42,10 @@ export function isString(x: unknown): x is string;
 export function isStr(x: unknown): x is string;
 export function isNumber(x: unknown): x is number;
 export function isNum(x: unknown): x is number;
+/**
+ * A number that is not `NaN` (Infinity is allowed). Not about safe integers:
+ * use `Number.isSafeInteger` for that, or `isFiniteNumber` to exclude Infinity.
+ */
 export function isNumberSafe(x: unknown): x is number;
 export function isBoolean(x: unknown): x is boolean;
 export function isBool(x: unknown): x is boolean;
@@ -51,9 +55,14 @@ export function isSymbol(x: unknown): x is symbol;
 export function isSym(x: unknown): x is symbol;
 export function isUndefined(x: unknown): x is undefined;
 export function isUndef(x: unknown): x is undefined;
+/** `typeof x === 'function'`, classes included. Other libraries call this `isFunction`. */
 export function isFunc(x: unknown): x is (...args: any[]) => any;
 
 // --- manual / structural guards ---
+/**
+ * `Array.isArray`, other realms included. False for a revoked proxy (its
+ * array-ness cannot be verified) instead of throwing.
+ */
 export function isArray<T>(x: T): x is ArrayPart<T>;
 export function isArr<T>(x: T): x is ArrayPart<T>;
 // Null checks. `isNull` and `isNil` are strictly `null` (`x === null`).
@@ -70,7 +79,16 @@ export function isNull(x: unknown): x is null;
  * `isNull`. Not lodash's `isNil` (null or undefined): use `isNullish` for that.
  */
 export function isNil(x: unknown): x is null;
+/**
+ * A non-null `typeof "object"` value that is verifiably not an array: object
+ * literals, class instances, null-prototype objects, boxed primitives, Date,
+ * Map, DOM nodes. Functions and arrays are false. Not lodash's `isObject`
+ * (which includes both): for any non-null object including arrays use
+ * `isObjectLoose` (lodash's `isObjectLike`). A revoked proxy is false, since
+ * "not an array" cannot be verified (0.3.1). Never throws, reads no property.
+ */
 export function isObject(x: unknown): x is object;
+/** Same function as `isObject` (not lodash's `isObject`). */
 export function isObj(x: unknown): x is object;
 /**
  * `Object.prototype.toString.call(x) === '[object Object]'`: object literals,
@@ -87,6 +105,10 @@ export function isObjectStrict(x: unknown): x is Record<string, unknown>;
  */
 export function isPlainObject(x: unknown): x is Record<string, unknown>;
 export function isPojo(x: unknown): x is Record<string, unknown>;
+/**
+ * Any non-null `typeof "object"` value, arrays included, functions excluded:
+ * lodash's `isObjectLike`. A revoked proxy is true (`typeof` still answers).
+ */
 export function isObjectLoose(x: unknown): x is object;
 export function isContentEditable(x: unknown): x is HTMLElement;
 
@@ -289,6 +311,10 @@ export interface IsNamespace {
   intlNumberFormat(x: unknown): x is Intl.NumberFormat;
   intlCollator(x: unknown): x is Intl.Collator;
 
+  /**
+   * A number that is not `NaN` (Infinity is allowed). Not about safe integers:
+   * use `Number.isSafeInteger` for that, or `isFiniteNumber` to exclude Infinity.
+   */
   numberSafe(x: unknown): x is number;
   array<T>(x: T): x is ArrayPart<T>;
   /** Neither `null` nor `undefined` (`x != null`). */
@@ -301,12 +327,25 @@ export interface IsNamespace {
   nil(x: unknown): x is null;
   contentEditable(x: unknown): x is HTMLElement;
 
+  /**
+   * A non-null `typeof "object"` value that is verifiably not an array: object
+   * literals, class instances, null-prototype objects, boxed primitives, Date,
+   * Map, DOM nodes. Functions and arrays are false. Not lodash's `isObject`
+   * (which includes both): for any non-null object including arrays use
+   * `isObjectLoose` (lodash's `isObjectLike`). A revoked proxy is false, since
+   * "not an array" cannot be verified (0.3.1). Never throws, reads no property.
+   */
   object(x: unknown): x is object;
   objectStrict(x: unknown): x is Record<string, unknown>;
   plainObject(x: unknown): x is Record<string, unknown>;
   pojo(x: unknown): x is Record<string, unknown>;
+  /**
+   * Any non-null `typeof "object"` value, arrays included, functions excluded:
+   * lodash's `isObjectLike`. A revoked proxy is true (`typeof` still answers).
+   */
   objectLoose(x: unknown): x is object;
 
+  /** Same function as `is.object` (not lodash's `isObject`). */
   obj(x: unknown): x is object;
   arr<T>(x: T): x is ArrayPart<T>;
 
