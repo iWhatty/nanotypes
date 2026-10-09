@@ -92,7 +92,7 @@ Both shapes are kept in lockstep. Every guard `isFoo` named export has a matchin
 | neither `null` nor `undefined` | `isDefined` | `x != null` |
 | strictly `undefined` | `isUndefined` | `x === undefined` |
 
-`isNil` is strictly `null` here, **not** lodash's `isNil`. Prefer `isNull` or `isNullish`, which can't be misread.
+`isNil` is strictly `null` here, **not** lodash's `isNil`. Prefer `isNull` or `isNullish`, which can't be misread. `isDefined` rejects `null` too; in remeda and ts-extras `isDefined` means only `!== undefined`.
 
 ### Coming from lodash
 

@@ -68,7 +68,10 @@ export function isArr<T>(x: T): x is ArrayPart<T>;
 // Null checks. `isNull` and `isNil` are strictly `null` (`x === null`).
 // Coming from lodash/Ramda, where `isNil` means null OR undefined? Use
 // `isNullish` for that.
-/** True when `x` is neither `null` nor `undefined` (`x != null`). */
+/**
+ * True when `x` is neither `null` nor `undefined` (`x != null`). Not
+ * remeda's or ts-extras' `isDefined` (`x !== undefined`, so `null` passes there).
+ */
 export function isDefined<T>(x: T | null | undefined): x is T;
 /** True when `x` is `null` or `undefined` (`x == null`). This is lodash's `isNil`. */
 export function isNullish(x: unknown): x is null | undefined;
@@ -317,7 +320,7 @@ export interface IsNamespace {
    */
   numberSafe(x: unknown): x is number;
   array<T>(x: T): x is ArrayPart<T>;
-  /** Neither `null` nor `undefined` (`x != null`). */
+  /** Neither `null` nor `undefined` (`x != null`). Not remeda's `isDefined` (`!== undefined`). */
   defined<T>(x: T | null | undefined): x is T;
   /** `null` or `undefined` (`x == null`). This is lodash's `isNil`. */
   nullish(x: unknown): x is null | undefined;

@@ -1,7 +1,11 @@
 # nanotypes design notes
 
-Status: working document, started 2026-10-08 for 0.3.1 (dice3D-js T-034:
-`isObject` on a revoked proxy). Sections are filled in as the review goes.
+Status: started 2026-10-08 for 0.3.1 (dice3D-js T-034: `isObject` on a
+revoked proxy). It lives in the repository and is not in the npm package:
+`files` ships what runs and what editors read (`dist/`, the `.d.ts` JSDoc,
+the README), and the README links here. The essentials an agent or a reader
+needs at the point of use (exact checks, ecosystem divergences) are in the
+JSDoc and the README guide; this file holds the reasoning.
 
 Contents:
 
@@ -11,11 +15,164 @@ Contents:
 3. Decision table: the object family over awkward values, measured.
 4. Audit: every guard and assert against the principles.
 5. Fixes in 0.3.1.
-6. Proposals: breaking or debatable changes, for the product owner.
+6. Proposals P1-P9: breaking or debatable changes, for the product owner.
 
 ## 1. Ecosystem
 
-(in progress)
+How the popular guard libraries define the object family, the null checks
+and numbers, read from their source files (October 2026). lodash is v4.17.21
+(the `4.17.21-npm` branch, the published per-method files). "Derived" marks
+behaviour read from the code, not stated by the library.
+
+### Object family
+
+| Library: guard | Functions | Arrays | `Object.create(null)` | Class instances | Other realm's `{}` | Runs the value's code |
+|---|---|---|---|---|---|---|
+| lodash `isObject` | yes | yes | yes | yes | yes | no |
+| lodash `isObjectLike` | no | yes | yes | yes | yes | no |
+| lodash `isPlainObject` | no | no | yes | no | yes (derived) | **yes**: reads, and temporarily *writes*, `Symbol.toStringTag`; reads `proto.constructor` |
+| underscore `isObject` | yes | yes | yes | yes | yes | no |
+| `@sindresorhus/is` `is.object` | yes | yes | yes | yes | yes | no |
+| `is-plain-obj` 4.1 / `@sindresorhus/is` `is.plainObject` | no | no | yes | no | yes (documented) | `in` checks only (a proxy `has` trap runs), no getters; rejects any `Symbol.toStringTag` or `Symbol.iterator` |
+| es-toolkit (compat) `isObject` | yes | yes | yes | yes | yes | no |
+| es-toolkit (compat) `isObjectLike` | no | yes | yes | yes | yes | no |
+| es-toolkit `isPlainObject` | no | no | yes | no | yes | yes: tag via `Object.prototype.toString` |
+| remeda `isObjectType` | no | yes | yes | yes | yes | no |
+| remeda `isPlainObject` | no | no | yes | no | no | no (`getPrototypeOf` trap only) |
+| jQuery `isPlainObject` | no | no | yes | no | yes (derived) | yes: tag and `constructor` |
+| ramda-adjunct `isObj` / `isObjLike` / `isPlainObj` | yes / no / no | yes / yes / no | yes | yes / yes / no | yes | `isPlainObj` reads `constructor` |
+| Node `util.isObject` (removed in v23) | no | yes | yes | yes | yes | no |
+| **nanotypes `isObject`** | **no** | **no** | yes | yes | yes | no |
+| **nanotypes `isObjectLoose`** | no | yes | yes | yes | yes | no |
+| **nanotypes `isObjectStrict`** | no | no | yes | yes | yes | yes: tag (documented) |
+| **nanotypes `isPlainObject`** | no | no | yes | no | **no** | no (`getPrototypeOf` trap only) |
+
+Sources:
+- lodash: [`isObject.js`](https://github.com/lodash/lodash/blob/4.17.21-npm/isObject.js)
+  (`value != null && (type == 'object' || type == 'function')`; its doc
+  lists arrays, functions, `new Number(0)`),
+  [`isObjectLike.js`](https://github.com/lodash/lodash/blob/4.17.21-npm/isObjectLike.js),
+  [`isPlainObject.js`](https://github.com/lodash/lodash/blob/4.17.21-npm/isPlainObject.js)
+  (tag check, then `proto.constructor` compared by function source text),
+  [`_baseGetTag.js`](https://github.com/lodash/lodash/blob/4.17.21-npm/_baseGetTag.js),
+  [`_getRawTag.js`](https://github.com/lodash/lodash/blob/4.17.21-npm/_getRawTag.js)
+  (`value[symToStringTag] = undefined;` inside a `try`, then restores it).
+- underscore: [`modules/isObject.js`](https://github.com/jashkenas/underscore/blob/master/modules/isObject.js).
+- `@sindresorhus/is` 8.1: [`source/index.ts`](https://github.com/sindresorhus/is/blob/main/source/index.ts)
+  (`is.object`: "functions are objects too"; `is.plainObject` copied from
+  `is-plain-obj`).
+- `is-plain-obj` 4.1: [`index.js`](https://github.com/sindresorhus/is-plain-obj/blob/main/index.js),
+  [readme](https://github.com/sindresorhus/is-plain-obj/blob/main/readme.md) ("works across realms").
+- es-toolkit: [repository](https://github.com/toss/es-toolkit); `isObject` and
+  `isObjectLike` exist only under `compat/` (lodash compatibility); the main
+  `isPlainObject` accepts a prototype whose prototype is `null` ("Required to
+  support node:vm.runInNewContext({})") and then checks the `toString` tag.
+- remeda: [`packages/remeda/src`](https://github.com/remeda/remeda/tree/main/packages/remeda/src)
+  (`isObjectType`, `isPlainObject`: "prototype is either `Object.prototype`
+  or `null`").
+- jQuery: [`src/core.js`](https://github.com/jquery/jquery/blob/main/src/core.js).
+- ramda-adjunct: [`src/`](https://github.com/char0n/ramda-adjunct/tree/master/src).
+- Node: [`util.types`](https://nodejs.org/api/util.html#utiltypes) ("these
+  checks do not inspect properties of the object that are accessible from
+  JavaScript (like their prototype)"); [deprecations](https://nodejs.org/api/deprecations.html)
+  DEP0053 `util.isObject` (`arg !== null && typeof arg === 'object'`),
+  end-of-life and removed in v23.
+
+**Where nanotypes differs.**
+- `isObject`: every library that uses the name (lodash, underscore,
+  es-toolkit compat, `@sindresorhus/is`, ramda-adjunct's `isObj`) includes
+  functions and arrays. nanotypes excludes both. Proposal P1.
+- `isObjectLoose` is what lodash, es-toolkit and ramda-adjunct call
+  `isObjectLike` (remeda: `isObjectType`). Same check, different name.
+- `isPlainObject`: only remeda has nanotypes' exact definition. The other
+  two camps accept another realm's plain object (`is-plain-obj`,
+  `@sindresorhus/is`, es-toolkit by prototype shape; lodash and jQuery by
+  constructor source text), and most also reject objects that carry a
+  `Symbol.toStringTag`, which nanotypes' accepts (`Math`, `JSON`). Users
+  will assume cross-realm support; the README guide says it is not there.
+- `isObjectStrict` has no counterpart anywhere. "Strict" misleads: it
+  accepts class instances, which every `isPlainObject` rejects. Proposal P2.
+- Running the value's code is common elsewhere: lodash's `isPlainObject`
+  even writes to the object. nanotypes' rule 2.3 is stricter than the
+  ecosystem, and that is a selling point for hostile or untrusted input.
+
+### Null checks
+
+| Meaning | lodash | ramda | es-toolkit | `@sindresorhus/is` | remeda | ts-extras / ts-is-present | nanotypes |
+|---|---|---|---|---|---|---|---|
+| `x === null` | `isNull` | | `isNull` | `is.null` | | | `isNull`, **`isNil`** |
+| `x == null` | **`isNil`** | **`isNil`** | **`isNil`** | `is.nullOrUndefined` | `isNullish` | | `isNullish` |
+| `x != null` | | | `isNotNil` | | `isNonNullish` | `isPresent` | **`isDefined`** |
+| `x !== undefined` | | | | | **`isDefined`** | **`isDefined`** | `!isUndefined` |
+
+Sources: lodash [`isNil.js`](https://github.com/lodash/lodash/blob/4.17.21-npm/isNil.js),
+[`isNull.js`](https://github.com/lodash/lodash/blob/4.17.21-npm/isNull.js);
+ramda [`isNil.js`](https://github.com/ramda/ramda/blob/master/source/isNil.js);
+es-toolkit and remeda as above;
+ts-extras [`source/`](https://github.com/sindresorhus/ts-extras/tree/main/source)
+(`isDefined`: `value !== undefined`; `isPresent`: neither null nor
+undefined); ts-is-present [`src/index.ts`](https://github.com/robertmassaioli/ts-is-present/blob/master/src/index.ts).
+
+**Where nanotypes differs.**
+- `isNil` (strictly `null`) conflicts with lodash, ramda and es-toolkit
+  (`== null`). Known since dice3D-js T-028; deprecation proposed (P8).
+- `isDefined` (`!= null`) conflicts with remeda, ts-extras and
+  ts-is-present, where `isDefined` is `!== undefined` and `null` passes.
+  New finding; proposal P9.
+- `isNullish` matches remeda.
+
+### Numbers
+
+- lodash `isNumber` includes `NaN` and boxed `Number`; `isFinite` is
+  `typeof value == 'number' && nativeIsFinite(value)` ("based on
+  `Number.isFinite`"). nanotypes' `isFiniteNumber` matches.
+- `@sindresorhus/is` `is.number` excludes `NaN` ("intentionally deviates
+  from `typeof` behavior"), and so does remeda's `isNumber`. nanotypes'
+  `isNumber` includes `NaN` (like `typeof` and lodash) and `isNumberSafe`
+  excludes it.
+- `@sindresorhus/is` *brands* its numeric guards (`is.finiteNumber`,
+  `is.positiveNumber`): its `types.ts` says the brand is there to prevent
+  false-branch narrowing to `never` when the input is `number`. That is
+  exactly audit finding 2; P4 proposes the same remedy.
+- `isFunc`: every surveyed library says `isFunction`.
+
+### TypeScript
+
+- `object` is "any value that isn't a primitive", and "function types are
+  considered to be `object`s"
+  ([handbook](https://www.typescriptlang.org/docs/handbook/2/functions.html#object),
+  [2.2 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-2.html)).
+  Arrays are non-primitive, so `object` too. So `x is object` is wider than
+  nanotypes' `isObject` and `isObjectLoose` (audit 3).
+- TypeScript 5.5 infers type predicates and states that they "have 'if and
+  only if' semantics": `false` must mean "not `T`"
+  ([5.5 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-5.html#inferred-type-predicates)).
+  Checked here with tsc 6.0.3 (`--declaration`):
+  `(x: unknown) => typeof x === 'number'` is inferred as `x is number`, but
+  `(x: unknown) => typeof x === 'number' && x > 0` as plain `boolean`. The
+  compiler itself refuses the predicate nanotypes declares for
+  `isPositiveNumber`.
+- `ts-reset` ([repository](https://github.com/total-typescript/ts-reset))
+  retypes `Array.isArray` as `arg is unknown[]` and `JSON.parse` as
+  `unknown`: the community direction is "narrow honestly, start from
+  `unknown`", which nanotypes' `isArray` (`ArrayPart<T>`, 0.2.4) follows.
+
+### Proxies (ECMAScript)
+
+- `IsArray`: "If argument is a Proxy exotic object, then Perform ?
+  ValidateNonRevokedProxy(argument)", then recurses into the target
+  ([spec](https://tc39.es/ecma262/multipage/abstract-operations.html#sec-isarray)).
+  So `Array.isArray` sees through a live proxy, runs no trap, and throws on
+  a revoked one.
+- `typeof` depends only on `[[Call]]`, which revocation does not remove, so
+  it works on a revoked proxy
+  ([typeof](https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#sec-typeof-operator-runtime-semantics-evaluation),
+  [Proxy.revocable](https://tc39.es/ecma262/multipage/reflection.html)).
+- `Object.prototype.toString` calls `IsArray` and then
+  `Get(obj, @@toStringTag)`, so a proxy's `get` trap and a tag getter run,
+  and a revoked proxy throws; the spec itself notes it "does not provide a
+  reliable type testing mechanism"
+  ([spec](https://tc39.es/ecma262/multipage/fundamental-objects.html#sec-object.prototype.tostring)).
 
 ## 2. Principles
 
@@ -106,9 +263,9 @@ nor narrower than the runtime check.
   array lands there.
 - **Narrower than the check, or a refinement of a type** (`isPositiveNumber(x):
   x is number`): for `x: number`, the else branch is `never`, though `-1`
-  lands there. TypeScript 5.5 refuses to *infer* a predicate for exactly
-  this shape (`x => typeof x === 'number' && x > 0`) for this reason (see
-  section 1).
+  lands there. The compiler refuses to *infer* a predicate for exactly
+  this shape (`x => typeof x === 'number' && x > 0` infers `boolean`, checked
+  with tsc 6.0.3), because predicates are "if and only if" (section 1).
 - **Asserts are exempt from the else-branch problem** (`asserts x is T` has
   no false branch), so `assertPositiveNumber(x): asserts x is number` is
   sound while the guard is not.
@@ -305,9 +462,12 @@ or a documented exception to a rule; **Low** = cosmetic, naming, or DEV-only.
 11. **Naming divergences** (rule 2.7): `isObject` excludes functions and
     arrays (lodash, `@sindresorhus/is`, es-toolkit, underscore include
     both); `isNil` is null-only (T-028; deprecation still pending);
+    `isDefined` is `!= null`, while remeda, ts-extras and ts-is-present
+    define `isDefined` as `!== undefined` (null passes); `isPlainObject`
+    rejects other realms' plain objects, which most libraries accept;
     `isObjectLoose` is what the ecosystem calls `isObjectLike`; `isFunc`
     where everyone else says `isFunction`; `isNumberSafe` can be misread as
-    `Number.isSafeInteger`. Proposals P1, P6, P8.
+    `Number.isSafeInteger`. Proposals P1, P6, P8, P9.
 
 ### Conforming (checked, no finding)
 
@@ -567,3 +727,21 @@ per guard if a user hits a cross-realm case.
   confusion.
 - **"`false` means not verified"** (rule 2.1) belongs in the README's
   design principles; done in 0.3.1.
+
+### P9. `isDefined` means `!== undefined` elsewhere
+
+nanotypes' `isDefined` is `x != null` (neither `null` nor `undefined`).
+remeda, ts-extras and ts-is-present define `isDefined` as `x !== undefined`,
+so `null` passes there; the ecosystem's names for nanotypes' meaning are
+`isNonNullish` (remeda), `isNotNil` (es-toolkit, ramda-adjunct) and
+`isPresent` (ts-extras, ts-is-present). Unlike `isNil`, the nanotypes answer
+is the *stricter* one: a reader expecting the remeda meaning has `null`
+rejected rather than let through, so the mistake fails closed.
+
+- (a) Document (done in 0.3.1: README null-check table and JSDoc).
+- (b) Add `isNonNullish` as an alias (remeda's name; pairs with
+  `isNullish`) and document it as preferred; keep `isDefined` forever.
+- (c) Change `isDefined` to `!== undefined`: never (same name, different
+  answer).
+
+**Recommendation: (a) now, (b) in 0.4.0.**
