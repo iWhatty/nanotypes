@@ -1,11 +1,10 @@
 # nanotypes
 
-[![npm](https://img.shields.io/npm/v/nanotypes)](https://www.npmjs.com/package/nanotypes)
-[![downloads](https://img.shields.io/npm/dm/nanotypes)](https://www.npmjs.com/package/nanotypes)
-[![bundle size](https://img.shields.io/bundlephobia/minzip/nanotypes)](https://bundlephobia.com/package/nanotypes)
-[![license](https://img.shields.io/npm/l/nanotypes)](https://github.com/iWhatty/nanotypes/blob/main/LICENSE)
-[![stars](https://img.shields.io/github/stars/iWhatty/nanotypes?style=social)](https://github.com/iWhatty/nanotypes)
-[![types](https://img.shields.io/npm/types/nanotypes)](https://www.npmjs.com/package/nanotypes)
+[![npm](https://badgen.net/npm/v/nanotypes)](https://www.npmjs.com/package/nanotypes)
+[![downloads](https://badgen.net/npm/dm/nanotypes)](https://www.npmjs.com/package/nanotypes)
+[![license](https://badgen.net/static/license/AGPL-3.0%20%2B%20terms/blue)](https://github.com/iWhatty/nanotypes/blob/main/LICENSE)
+[![stars](https://badgen.net/github/stars/iWhatty/nanotypes)](https://github.com/iWhatty/nanotypes)
+[![types](https://badgen.net/npm/types/nanotypes)](https://www.npmjs.com/package/nanotypes)
 
 Minimal, runtime-safe type guards for modern JavaScript. Two surfaces, same package: an ergonomic `is` namespace, plus per-guard named exports where a single guard bundles to about 50-200 bytes minified. Zero dependencies.
 
