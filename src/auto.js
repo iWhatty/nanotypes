@@ -70,7 +70,9 @@ for (const [name, Type] of Object.entries(scannedMap)) {
 // Build the matching assertType namespace from the augmented `is`.
 function assertTypeAuto(value, Type) {
     if (!isAuto(value, Type)) {
-        throw new TypeError(`Expected ${Type?.name ?? 'instance'}, got ${describe.value(value)}`);
+        let name = 'instance';
+        try { name = `${Type?.name ?? name}`; } catch {}
+        throw new TypeError(`Expected ${name}, got ${describe.value(value)}`);
     }
 }
 

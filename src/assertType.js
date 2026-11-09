@@ -15,7 +15,9 @@ import { DEV } from './env.js';
 // TypeError if the value is not an instance of the constructor.
 function assertTypeNamespace(value, Type) {
     if (!is(value, Type)) {
-        throw new TypeError(`Expected ${Type?.name ?? 'instance'}, got ${describe.value(value)}`);
+        let name = 'instance';
+        try { name = `${Type?.name ?? name}`; } catch {}
+        throw new TypeError(`Expected ${name}, got ${describe.value(value)}`);
     }
 }
 

@@ -468,6 +468,32 @@ export function runGuardSafety(label, mod, auto) {
     }
   }
 
+  // Generic assertions must survive hostile constructor names in both entries.
+  class NamedType {}
+  const throwingName = new Proxy(NamedType, {
+    get(target, key, receiver) {
+      if (key === 'name') return boom();
+      return Reflect.get(target, key, receiver);
+    },
+  });
+  const revokedType = Proxy.revocable(NamedType, {});
+  revokedType.revoke();
+  for (const [name, fn] of [['assertType', mod.assertType], ['auto assertType', auto.assertType]]) {
+    for (const [Type, expected] of [
+      [throwingName, 'instance'], [revokedType.proxy, 'instance'],
+      [NamedType, 'NamedType'], [null, 'instance'], [undefined, 'instance'],
+    ]) {
+      try { fn({}, Type); fail(`${name} did not throw for a mismatch`); } catch (e) {
+        if (!(e instanceof TypeError) || e.message !== `Expected ${expected}, got Object`) {
+          fail(`${name} did not throw the expected TypeError: ${e.message}`);
+        }
+      }
+    }
+    try { fn(new NamedType(), throwingName); } catch {
+      fail(`${name} read a hostile name for a matching instance`);
+    }
+  }
+
   // 6. Asserts throw their own TypeError, whatever the value.
   for (const name of ['assertObject', 'assertString', 'assertPlainObject', 'assertMap', 'assertArray']) {
     for (const [valueLabel, x] of corpus) {

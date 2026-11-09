@@ -4,6 +4,8 @@ What changed for people using the package, per release. Entries before 0.2.2 wer
 
 ## Unreleased
 
+- Generic `assertType` in both entries throws its own TypeError when a constructor name cannot be read.
+
 - TypeScript now declares the existing typed-array, error, and platform assertion/namespace methods.
 
 - `/auto` skips global constructors whose prototype access throws instead of failing to import.
