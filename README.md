@@ -15,7 +15,7 @@ Minimal, runtime-safe type guards for modern JavaScript. Two surfaces, same pack
 - Safe in Node, browsers, workers, and edge runtimes
 - Non-throwing `instanceof` checks (runtime hardened)
 - All guards return strict booleans (`true | false`)
-- Production-hardened: exported APIs are frozen in production
+- Production-hardened: the `is`, `assertType`, and `describe` namespaces are frozen in production
 - Shared DEV detection at run time: `globalThis.__DEV__ === true`, or in Node `process.env.NODE_ENV !== "production"` (read through `globalThis`, so bundlers never polyfill `process`)
 - Auto-generated `assertType.*` versions
 - Primitive shorthands: `is.str`, `is.num`, `is.bool`, `is.bigi`, `is.sym`, `is.undef`
@@ -76,7 +76,7 @@ Both shapes are kept in lockstep. Every guard `isFoo` named export has a matchin
 | any non-null object, arrays included (lodash's `isObjectLike`) | `isObjectLike` / `isObjectLoose` | `{}`, `[]`, class instances, `Map`, `Date`, boxed primitives | functions, `null`, primitives |
 | a non-null object that is not an array | `isObject` / `isObj` | `{}`, class instances, `Map`, `Date`, `Math`, boxed primitives | arrays, functions, `null`, primitives, revoked proxies |
 | a plain object: a literal, `Object.create(null)`, parsed JSON | `isPlainObject` / `isPojo` | `{}`, `Object.create(null)`, `Math`, `JSON` | class instances, `Map`, `Date`, arrays, another realm's `{}` |
-| an object whose `toString` tag is `Object`, from any realm | `isObjectStrict` (deprecated, 0.4.0: use `isPlainObject`) | `{}`, class instances, another realm's `{}` | `Map`, `Date`, `Math`, arrays, anything with a `Symbol.toStringTag` (it reads the tag, so a tag getter runs) |
+| an object whose `toString` tag is `Object`, from any realm | `isObjectStrict` (deprecated, 0.4.0: use `isPlainObject`) | `{}`, class instances, another realm's `{}` | `Map`, `Date`, `Math`, arrays, a string `Symbol.toStringTag` other than `"Object"` (it reads the tag, so a tag getter runs) |
 | an array, from any realm | `isArray` / `isArr` | arrays, proxies of arrays | revoked proxies |
 | a function or class | `isFunction` / `isFunc` | functions, classes | everything else |
 
@@ -126,7 +126,7 @@ is(value, Class)
 
 ### Type-specific guards
 
-Guards are generated dynamically from available runtime constructors. Some guards may only exist when the constructor exists in that environment (e.g., DOM-related guards in browsers but not in Node).
+The default guards always exist. Instanceof guards look up their constructor when called and return `false` when it is unavailable. Only `nanotypes/auto` adds environment-specific guards at import time.
 
 | Guard                             | Description                              |
 | --------------------------------- | ---------------------------------------- |
@@ -143,8 +143,8 @@ Guards are generated dynamically from available runtime constructors. Some guard
 | `is.nil(x)`                       | Deprecated: strictly `null` (not lodash's `isNil`); use `is.null` |
 | `is.array(x)` / `is.arr(x)`       | `Array.isArray` (any realm); `false` for a revoked proxy |
 | `is.object(x)` / `is.obj(x)`      | Non-null object, not array, not function (not lodash's `isObject`) |
-| `is.objectStrict(x)`              | Deprecated (use `is.plainObject`): `Object.prototype.toString` gives `[object Object]` (object literals, null-prototype objects, class instances; not if `Symbol.toStringTag` is set) |
-| `is.plainObject(x)`               | Prototype is `Object.prototype` or `null` (see below) |
+| `is.objectStrict(x)`              | Deprecated (use `is.plainObject`): `Object.prototype.toString` gives `[object Object]` (object literals, null-prototype objects, class instances; a string `Symbol.toStringTag` overrides the tag) |
+| `is.plainObject(x)` / `is.pojo(x)` | Prototype is `Object.prototype` or `null` (see below) |
 | `is.objectLoose(x)` / `is.objectLike(x)` | Non-null object, arrays included (lodash's `isObjectLike`) |
 | `is.func(x)` / `is.function(x)`   | `typeof x === "function"` (classes included) |
 | `is.map(x)`                       | Instance of `Map`                        |
@@ -163,7 +163,7 @@ Guards are generated dynamically from available runtime constructors. Some guard
 
 > **Note:** `is.number(x)` follows standard JavaScript semantics and returns `true` for `NaN`. Use `is.numberSafe(x)` if you require a numeric value that is not `NaN`.
 
-> **`isFiniteNumber`, not `isFinite`.** The named export `isFinite` is deprecated: importing it shadows the global `isFinite`, which coerces (`isFinite("1") === true`), while nanotypes' never does (`isFiniteNumber("1") === false`). `isFinite` and `assertFinite` stay as aliases of `isFiniteNumber` and `assertFiniteNumber`.
+> **`isFiniteNumber`, not `isFinite`.** The named export `isFinite` is deprecated: importing it shadows the global `isFinite`, which coerces (`isFinite("1") === true`), while nanotypes' never does (`isFiniteNumber("1") === false`). `isFinite` is the same function as `isFiniteNumber`. `assertFinite` performs the same check as `assertFiniteNumber` but keeps its `Expected finite` error message.
 
 > **`isPlainObject` / `isPojo`** decides by `Object.getPrototypeOf(x)` alone: true when `x` is a non-null, non-function object whose prototype is this realm's `Object.prototype`, or `null`. It reads no property of `x`, so `Symbol.toStringTag` is ignored (`{ [Symbol.toStringTag]: "X" }` is plain) and no getter runs. Arrays, class instances, `Object.create(proto)`, and objects from another realm (iframe, `vm`) are not plain. A proxy is judged by its `getPrototypeOf` trap; a revoked proxy or a throwing trap gives `false`. `isObjectStrict` (the `toString`-tag check) is deprecated since 0.4.0 in favour of `isPlainObject`: it runs the value's `Symbol.toStringTag` getter. Moving from `isObjectStrict` to `isPlainObject` changes the answer for class instances and another realm's `{}` (now `false`) and for `Math`, `JSON` and `arguments` (now `true`). No guard checks for a plain object from another realm yet ([docs/DESIGN.md](https://github.com/iWhatty/nanotypes/blob/main/docs/DESIGN.md), P2).
 
@@ -293,13 +293,13 @@ if (is.htmlElement(node)) {
 
 ### Auto-discovery via `nanotypes/auto`
 
-If you need guards for globals beyond the curated set (`urlPattern`, `broadcastChannel`, `compressionStream`, custom platform APIs, user-defined globals), import the `/auto` subpath:
+If you need guards for globals beyond the curated set (`urlPattern`, `compressionStream`, custom platform APIs, user-defined globals), import the `/auto` subpath:
 
 ```js
 import { is, assertType } from 'nanotypes/auto';
 ```
 
-`/auto` walks `globalThis` at module load and adds every constructor-shaped global to the `is` namespace, on top of the curated static set. Trade-off: a larger surface that TypeScript can't narrow against (the `.d.ts` for `/auto` is the same as the default; the extra guards are reachable but un-narrowed). About ~370 bytes larger gzipped than the default. Useful for diagnostic or introspective code; not recommended as a default import in size-sensitive bundles.
+`/auto` walks `globalThis` at module load and adds every constructor-shaped global to the `is` namespace, on top of the curated static set. Trade-off: a larger surface that TypeScript can't narrow against (the `.d.ts` for `/auto` is the same as the default; extra guards require a local type assertion or declaration before TypeScript allows access). About ~370 bytes larger gzipped than the default. Useful for diagnostic or introspective code; not recommended as a default import in size-sensitive bundles.
 
 ### Migration to 0.4.0
 
@@ -330,7 +330,7 @@ The full rules, with the reasoning, an audit of every guard, and proposals under
 - Runtime-adaptive constructor support
 - Tree-shakable ESM surface
 - Zero dependencies
-- Immutable public API in production
+- Frozen `is`, `assertType`, and `describe` namespaces in production
 
 ### When not to use nanotypes
 

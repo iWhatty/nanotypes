@@ -337,6 +337,45 @@ export function runGuardSafety(label, mod, auto) {
   if (isObjectStrict(new (class Foo {})()) !== true) fail('isObjectStrict(class instance) should stay true');
   if (isObjectStrict(runInNewContext('({})')) !== true) fail('isObjectStrict(cross-realm {}) should be true');
 
+  // Primitive and derived guards do not coerce boxed values or Symbols.
+  const primitiveCases = [
+    ['String', ['text', ''], [Object('text'), Symbol('text'), null]],
+    ['Number', [0, NaN, Infinity, -Infinity], [Object(1), '1', 1n, Symbol('n')]],
+    ['Boolean', [true, false], [Object(false), 0, 'false']],
+    ['Bigint', [0n, 1n], [Object(1n), 1, '1']],
+    ['Symbol', [Symbol('s'), Symbol.iterator], [Object(Symbol('s')), 's']],
+    ['Undefined', [undefined], [null, false, 0]],
+    ['NumberSafe', [0, Infinity, -Infinity], [NaN, Object(1), '1', Symbol('n')]],
+    ['PositiveNumber', [1, Infinity], [0, -0, -1, NaN, Object(1), '1', Symbol('n')]],
+    ['NegativeNumber', [-1, -Infinity], [0, -0, 1, NaN, Object(-1), '-1', Symbol('n')]],
+    ['Integer', [0, -0, -1, 2 ** 53], [0.5, NaN, Infinity, Object(1), 1n, Symbol('n')]],
+    ['EmptyString', [''], [' ', Object(''), null]],
+    ['NonEmptyString', [' ', 'text'], ['', Object('text'), 1, Symbol('s')]],
+    ['Truthy', [{}, [], Object(false), Symbol('s'), 1n], [false, 0, -0, 0n, NaN, '', null, undefined]],
+    ['Falsy', [false, 0, -0, 0n, NaN, '', null, undefined], [{}, [], Object(false), Symbol('s'), 1n]],
+  ];
+  for (const [name, positives, negatives] of primitiveCases) {
+    const key = name.charAt(0).toLowerCase() + name.slice(1);
+    for (const surface of [mod, auto]) {
+      for (const [guard, assert] of [
+        [surface['is' + name], surface['assert' + name]],
+        [surface.is[key], surface.assertType[key]],
+      ]) {
+        for (const [values, expected] of [[positives, true], [negatives, false]]) {
+          for (const value of values) {
+            if (guard(value) !== expected) fail(name + ': incorrect primitive result');
+            try {
+              assert(value);
+              if (!expected) fail(name + ': assertion accepted invalid value');
+            } catch (e) {
+              if (expected || !(e instanceof TypeError)) fail(name + ': unexpected assertion error');
+            }
+          }
+        }
+      }
+    }
+  }
+
   // 4. isFiniteNumber / isFinite.
   const { isFiniteNumber, isFinite: isFiniteAlias } = mod;
   if (typeof isFiniteNumber !== 'function') fail('isFiniteNumber is not exported');

@@ -2,6 +2,12 @@
 
 What changed for people using the package, per release. Entries before 0.2.2 were reconstructed from git history. `docs/DESIGN.md` in the repo explains the decisions behind 0.3 and 0.4.
 
+## Unreleased
+
+- TypeScript now declares the existing typed-array, error, and platform assertion/namespace methods.
+
+- `/auto` skips global constructors whose prototype access throws instead of failing to import.
+
 ## 0.4.0 — 2026-10-09
 
 - New names that match other libraries, as the same functions: `isObjectLike` (lodash's name for `isObjectLoose`), `isNonNullish` (remeda's name for `isDefined`) and `isFunction` (for `isFunc`), each with its assert and `is.*` / `assertType.*` forms.

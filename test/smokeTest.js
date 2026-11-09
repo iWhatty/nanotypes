@@ -147,6 +147,9 @@ console.log('\n--- guard safety (hostile values, isPlainObject, isFiniteNumber) 
 const { runGuardSafety } = await import('./guardSafety.js');
 if (runGuardSafety('src', defaultMod, autoMod)) process.exitCode = 1;
 
+const { runAutoSafety } = await import('./autoSafety.js');
+if (runAutoSafety('src', new URL('../src/auto.js', import.meta.url))) process.exitCode = 1;
+
 // --- Null-proto describe check ---
 console.log('\n describe.value(Object.create(null)):', describeMod.describe.value(Object.create(null)));
 

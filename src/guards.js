@@ -148,7 +148,7 @@ export const isObj = isObject;
 // `Object.prototype.toString` gives "[object Object]": true for object
 // literals, null-prototype objects, and class instances without a
 // `Symbol.toStringTag`; false for arrays, Date, Map, DOM elements, and any
-// object whose `Symbol.toStringTag` is set. It reads `Symbol.toStringTag`
+// object whose string `Symbol.toStringTag` is not "Object". It reads the tag
 // (a getter there runs); a throw returns false.
 /** @deprecated Use `isPlainObject` (0.4.0, docs/DESIGN.md P2). Kept, unchanged. */
 export const isObjectStrict = (x) => {

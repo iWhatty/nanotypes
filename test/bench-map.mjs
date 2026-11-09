@@ -1,6 +1,6 @@
 
 
-import { generateInstanceofMap } from '../src/instanceof-map.js';
+import { generateInstanceofMap } from '../src/scan.js';
 
 const start = performance.now();
 generateInstanceofMap();

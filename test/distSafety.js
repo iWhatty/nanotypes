@@ -70,6 +70,8 @@ const [distIndex, distAuto] = await Promise.all([
 failures += runNullChecks('dist', distIndex, distAuto);
 const { runGuardSafety } = await import('./guardSafety.js');
 failures += runGuardSafety('dist', distIndex, distAuto);
+const { runAutoSafety } = await import('./autoSafety.js');
+failures += runAutoSafety('dist', pathToFileURL(join(dist, 'auto.js')));
 
 // The namespace builders derive keys with charAt(2) (is.js) and charAt(6)
 // (assertType.js); neither appears in guards, asserts, or describe. The

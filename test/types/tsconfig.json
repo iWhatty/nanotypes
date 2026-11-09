@@ -10,5 +10,5 @@
     "allowJs": true,
     "checkJs": true
   },
-  "files": ["isArray.test.ts", "nullChecks.test.ts", "finiteNumber.test.ts", "aliases.test.ts", "functions.test.ts", "refinements.test.ts", "objects.test.ts", "untypedJs.check.js"]
+  "files": ["namespaces.test.ts", "isArray.test.ts", "nullChecks.test.ts", "finiteNumber.test.ts", "aliases.test.ts", "functions.test.ts", "refinements.test.ts", "objects.test.ts", "untypedJs.check.js"]
 }

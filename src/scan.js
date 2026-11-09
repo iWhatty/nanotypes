@@ -23,10 +23,10 @@ const denylist = new Set([
 ]);
 
 function isValidInstanceofType([key, val]) {
+  const proto = typeof val === 'function' && safeGet(val, 'prototype');
   return (
-    typeof val === 'function' &&
-    typeof val.prototype === 'object' &&
-    val.prototype !== null &&
+    proto &&
+    typeof proto === 'object' &&
     /^[A-Z]/.test(key) && // likely a constructor
     !denylist.has(key)
   );
@@ -40,7 +40,6 @@ export const aliasMap = {
   URLSearchParams: 'urlSearchParams',
   URIError: 'uriError',
   DOMException: 'domException',
-  // Crypto: 'cryptoConstructor', // only if you choose to expose this safely
 };
 
 function formatKey(name) {
@@ -62,8 +61,7 @@ function safeGet(obj, key) {
 
 export function generateInstanceofMap() {
 
-  const entries = Reflect.ownKeys(globalThis)
-    .filter((k) => typeof k === "string")
+  const entries = Object.getOwnPropertyNames(globalThis)
     .map((k) => [k, safeGet(globalThis, k)])
     .filter(isValidInstanceofType)
     .map(([name, ctor]) => [formatKey(name), ctor]);
